@@ -42,13 +42,16 @@ export function LineChart({
   const maxVal = Math.max(...values);
   const range = maxVal - minVal || 1;
 
+  const n = data.length;
+
   useEffect(() => {
+    animProgress.setValue(0);
     Animated.timing(animProgress, {
       toValue: 1,
-      duration: 700,
+      duration: Math.min(1200, 300 + n * 120),
       useNativeDriver: false,
     }).start();
-  }, []);
+  }, [data.length]);
 
   if (data.length < 2) return null;
 
@@ -86,9 +89,16 @@ export function LineChart({
             {/* Fill columns under each point */}
             {points.map((pt, i) => {
               const left = pt.x * (chartWidth - 16) + 8; // 8px margin on each side
+              const pointProgress = n <= 1 ? 0 : i / (n - 1);
               const colHeight = animProgress.interpolate({
-                inputRange: [0, 1],
+                inputRange: [Math.max(0, pointProgress - 0.05), Math.min(1, pointProgress + 0.05)],
                 outputRange: [0, pt.y * plotHeight * 0.9],
+                extrapolate: 'clamp',
+              });
+              const colOpacity = animProgress.interpolate({
+                inputRange: [Math.max(0, pointProgress - 0.05), pointProgress],
+                outputRange: [0, 1],
+                extrapolate: 'clamp',
               });
               return (
                 <Animated.View
@@ -102,12 +112,13 @@ export function LineChart({
                     backgroundColor: fColor + '15',
                     borderTopLeftRadius: 4,
                     borderTopRightRadius: 4,
+                    opacity: colOpacity,
                   }}
                 />
               );
             })}
 
-            {/* Line segments connecting dots */}
+            {/* Line segments connecting dots — draw progressively */}
             {points.map((pt, i) => {
               if (i === 0) return null;
               const prev = points[i - 1];
@@ -121,9 +132,13 @@ export function LineChart({
               const length = Math.sqrt(dx * dx + dy * dy);
               const angle = Math.atan2(dy, dx) * (180 / Math.PI);
 
-              const lineOpacity = animProgress.interpolate({
-                inputRange: [0, 1],
+              // Each segment draws during its portion of the animation
+              const segStart = (i - 1) / (n - 1);
+              const segEnd = i / (n - 1);
+              const segScale = animProgress.interpolate({
+                inputRange: [segStart, segEnd],
                 outputRange: [0, 1],
+                extrapolate: 'clamp',
               });
 
               return (
@@ -137,10 +152,10 @@ export function LineChart({
                     height: 2.5,
                     backgroundColor: lColor,
                     borderRadius: 1,
-                    opacity: lineOpacity,
                     transform: [
                       { translateY: -1 },
                       { rotate: `${angle}deg` },
+                      { scaleX: segScale },
                     ],
                     transformOrigin: 'left center',
                   }}
@@ -148,16 +163,23 @@ export function LineChart({
               );
             })}
 
-            {/* Dots */}
-            {showDots &&
+            {/* Dots — appear as the line reaches each point; hide when too many */}
+            {showDots && n <= 18 &&
               points.map((pt, i) => {
                 const left = pt.x * (chartWidth - 16) + 8;
                 const top = plotHeight - pt.y * plotHeight * 0.9;
                 const isSelected = selectedIndex === i;
 
+                const pointProgress = n <= 1 ? 0 : i / (n - 1);
                 const dotOpacity = animProgress.interpolate({
-                  inputRange: [0, 1],
+                  inputRange: [Math.max(0, pointProgress - 0.02), pointProgress],
                   outputRange: [0, 1],
+                  extrapolate: 'clamp',
+                });
+                const dotScale = animProgress.interpolate({
+                  inputRange: [Math.max(0, pointProgress - 0.02), pointProgress, Math.min(1, pointProgress + 0.04)],
+                  outputRange: [0, 1.3, 1],
+                  extrapolate: 'clamp',
                 });
 
                 return (
@@ -174,6 +196,7 @@ export function LineChart({
                       borderWidth: 2.5,
                       borderColor: lColor,
                       opacity: dotOpacity,
+                      transform: [{ scale: dotScale }],
                       zIndex: 10,
                     }}
                   />
@@ -202,23 +225,32 @@ export function LineChart({
         )}
       </View>
 
-      {/* X-axis labels */}
+      {/* X-axis labels — thin when many data points */}
       <View style={[styles.xLabels, { marginTop: spacing.xs }]}>
-        {data.map((d, i) => (
-          <Text
-            key={`xl-${i}`}
-            style={[
-              styles.xLabel,
-              {
-                color: selectedIndex === i ? colors.text : colors.textTertiary,
-                fontSize: fontSize.xs,
-                fontWeight: selectedIndex === i ? fontWeight.semibold : fontWeight.normal,
-              },
-            ]}
-          >
-            {d.label}
-          </Text>
-        ))}
+        {data.map((d, i) => {
+          // Show max ~7 labels evenly spaced; always show first and last
+          const maxLabels = 7;
+          const showLabel =
+            n <= maxLabels ||
+            i === 0 ||
+            i === n - 1 ||
+            Math.round((i / (n - 1)) * (maxLabels - 1)) !== Math.round(((i - 1) / (n - 1)) * (maxLabels - 1));
+          return (
+            <Text
+              key={`xl-${i}`}
+              style={[
+                styles.xLabel,
+                {
+                  color: selectedIndex === i ? colors.text : colors.textTertiary,
+                  fontSize: n > 12 ? fontSize.xs - 1 : fontSize.xs,
+                  fontWeight: selectedIndex === i ? fontWeight.semibold : fontWeight.normal,
+                },
+              ]}
+            >
+              {showLabel ? d.label : ''}
+            </Text>
+          );
+        })}
       </View>
     </View>
   );
