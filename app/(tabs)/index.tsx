@@ -155,37 +155,29 @@ export default function DashboardScreen() {
   }, [user?.uid]);
 
   // Compute current month totals and net worth
+  // Net Worth = Assets only (savings + investments). Income/expenses are cash flow, not net worth.
   const { monthlyExpenses, monthlyIncome, netWorth, investmentTotal, businessExpenses, businessIncome } = useMemo(() => {
     const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
     const year = now.getFullYear();
     const month = now.getMonth();
 
     let expMonthly = 0;
-    let expTotal = 0;
     let bizExp = 0;
     for (const e of expenses) {
       const d = e.date.toDate();
-      if (d <= today) {
-        expTotal += e.amount;
-        if (d.getFullYear() === year && d.getMonth() === month) {
-          expMonthly += e.amount;
-          if (e.isBusiness) bizExp += e.amount;
-        }
+      if (d.getFullYear() === year && d.getMonth() === month) {
+        expMonthly += e.amount;
+        if (e.isBusiness) bizExp += e.amount;
       }
     }
 
     let incMonthly = 0;
-    let incTotal = 0;
     let bizInc = 0;
     for (const i of incomes) {
       const d = i.date.toDate();
-      if (d <= today) {
-        incTotal += i.amount;
-        if (d.getFullYear() === year && d.getMonth() === month) {
-          incMonthly += i.amount;
-          if (i.isBusiness) bizInc += i.amount;
-        }
+      if (d.getFullYear() === year && d.getMonth() === month) {
+        incMonthly += i.amount;
+        if (i.isBusiness) bizInc += i.amount;
       }
     }
 
@@ -199,7 +191,7 @@ export default function DashboardScreen() {
       }
     }
 
-    const nw = savings + investTotal + incTotal - expTotal;
+    const nw = savings + investTotal;
 
     return { monthlyExpenses: expMonthly, monthlyIncome: incMonthly, netWorth: nw, investmentTotal: investTotal, businessExpenses: bizExp, businessIncome: bizInc };
   }, [expenses, incomes, getTotalSavings, investmentAccounts, investmentHoldings]);
@@ -292,6 +284,7 @@ export default function DashboardScreen() {
           fontSize={fontSize}
           fontWeight={fontWeight}
           borderRadius={borderRadius}
+          onPress={() => router.push('/savings/' as any)}
         />
       </View>
 

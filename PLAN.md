@@ -84,10 +84,12 @@
 - Chart uses same data, grouped by month for last 6 months
 
 ## Phase 5: Savings, Dashboard Charts & Budget 🔲
-- [ ] Savings accounts list — name, institution, latest balance, emergency fund badge
-- [ ] Add savings account
-- [ ] Account detail — balance history (snapshots)
-- [ ] Add balance snapshot (balance + date)
+- [x] Savings accounts list — name, institution, latest balance, emergency fund badge
+- [x] Add savings account (inline form with emergency fund toggle)
+- [x] Account detail — balance history (snapshots) with change indicators
+- [x] Add balance snapshot (balance + date with calendar picker)
+- [x] Dashboard savings card tappable → savings list
+- [x] Delete account with confirmation
 - [ ] **Net Worth Dashboard Charts**:
   - [ ] Area chart with gradient fill + time range selector (1M/3M/6M/YTD/1Y/All)
   - [ ] Change indicators: $ change + % change (green/red)
