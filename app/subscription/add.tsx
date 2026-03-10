@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Animated,
+  Switch,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Timestamp } from 'firebase/firestore';
@@ -65,6 +66,7 @@ export default function AddSubscriptionScreen() {
   const [hasEndDate, setHasEndDate] = useState(false);
   const [endDate, setEndDate] = useState<Date | null>(null);
   const [showEndCalendar, setShowEndCalendar] = useState(false);
+  const [isBusiness, setIsBusiness] = useState(false);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<{ name?: string; amount?: string; category?: string }>({});
 
@@ -96,6 +98,7 @@ export default function AddSubscriptionScreen() {
         endDate: hasEndDate && endDate ? Timestamp.fromDate(endDate) : null,
         isActive: true,
         nextBillingDate: Timestamp.fromDate(nextBilling),
+        isBusiness,
       });
       router.back();
     } catch (error) {
@@ -194,8 +197,24 @@ export default function AddSubscriptionScreen() {
 
         </FadeInView>
 
+        {/* Business toggle */}
+        <FadeInView delay={300}>
+          <View style={[styles.switchRow, { backgroundColor: colors.surface, borderRadius: borderRadius.md, borderWidth: 1, borderColor: colors.border, padding: spacing.md, marginBottom: spacing.md }]}>
+            <View style={{ flex: 1, marginRight: 12 }}>
+              <Text style={{ color: colors.text, fontSize: fontSize.md, fontWeight: fontWeight.medium }}>Business Subscription</Text>
+              <Text style={{ color: colors.textTertiary, fontSize: fontSize.xs, marginTop: 2 }}>Flag as business-related</Text>
+            </View>
+            <Switch
+              value={isBusiness}
+              onValueChange={setIsBusiness}
+              trackColor={{ false: colors.border, true: colors.primary + '60' }}
+              thumbColor={isBusiness ? colors.primary : '#fff'}
+            />
+          </View>
+        </FadeInView>
+
         {/* Start Date */}
-        <FadeInView delay={320}>
+        <FadeInView delay={380}>
         <View style={[styles.fieldSection, { marginBottom: spacing.md }]}>
           <Text style={[styles.fieldLabel, { color: colors.text, fontSize: fontSize.sm, fontWeight: fontWeight.semibold, marginBottom: spacing.sm }]}>Start Date</Text>
           <Pressable
@@ -216,7 +235,7 @@ export default function AddSubscriptionScreen() {
         </FadeInView>
 
         {/* End Date (optional) */}
-        <FadeInView delay={400}>
+        <FadeInView delay={460}>
         <View style={[styles.fieldSection, { marginBottom: spacing.lg }]}>
           <Pressable
             onPress={() => {
@@ -260,7 +279,7 @@ export default function AddSubscriptionScreen() {
         </FadeInView>
 
         {/* Actions */}
-        <FadeInView delay={480}>
+        <FadeInView delay={540}>
           <View style={[styles.actions, { gap: spacing.md }]}>
             <Button title="Save Subscription" onPress={handleSave} loading={saving} disabled={saving} />
             <Pressable
@@ -288,6 +307,7 @@ const styles = StyleSheet.create({
   dateDisplay: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   dateInputRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   dateText: { flex: 1 },
+  switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   optionalRow: { flexDirection: 'row', alignItems: 'center' },
   actions: { marginTop: 8 },
   ghostButton: { alignItems: 'center', justifyContent: 'center' },

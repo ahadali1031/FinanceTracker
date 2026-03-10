@@ -58,8 +58,8 @@ export default function AddAccountScreen() {
   const [name, setName] = useState('');
   const [accountType, setAccountType] = useState<InvestmentAccountType>('brokerage');
   const [institution, setInstitution] = useState('');
-  const [employerMatch, setEmployerMatch] = useState('');
-  const [employerMatchLimit, setEmployerMatchLimit] = useState('');
+  const [employerMatch, setEmployerMatch] = useState('100');
+  const [employerMatchCap, setEmployerMatchCap] = useState('11750');
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<{ name?: string }>({});
 
@@ -77,7 +77,7 @@ export default function AddAccountScreen() {
         accountType,
         institution: institution.trim(),
         ...(accountType === '401k' && employerMatch ? { employerMatch: parseFloat(employerMatch) } : {}),
-        ...(accountType === '401k' && employerMatchLimit ? { employerMatchLimit: parseFloat(employerMatchLimit) } : {}),
+        ...(accountType === '401k' && employerMatchCap ? { employerMatchCap: parseFloat(employerMatchCap) } : {}),
       });
       router.back();
     } catch (error) {
@@ -175,7 +175,8 @@ export default function AddAccountScreen() {
             <View style={[styles.matchRow, { gap: spacing.sm }]}>
               <View style={{ flex: 1 }}>
                 <Input
-                  placeholder="Match % (e.g. 50)"
+                  label="Match %"
+                  placeholder="100"
                   value={employerMatch}
                   onChangeText={setEmployerMatch}
                   keyboardType="decimal-pad"
@@ -183,17 +184,18 @@ export default function AddAccountScreen() {
               </View>
               <View style={{ flex: 1 }}>
                 <Input
-                  placeholder="Up to % of salary (e.g. 6)"
-                  value={employerMatchLimit}
-                  onChangeText={setEmployerMatchLimit}
+                  label="Annual Cap ($)"
+                  placeholder="11750"
+                  value={employerMatchCap}
+                  onChangeText={setEmployerMatchCap}
                   keyboardType="decimal-pad"
                 />
               </View>
             </View>
             <Text style={{ color: colors.textTertiary, fontSize: fontSize.xs, marginTop: -8 }}>
-              {employerMatch && employerMatchLimit
-                ? `Your employer matches ${employerMatch}% of contributions up to ${employerMatchLimit}% of your salary`
-                : 'e.g. 50% match up to 6% of salary'}
+              {employerMatch && employerMatchCap
+                ? `Employer matches ${employerMatch}% of your contributions, up to $${Number(employerMatchCap).toLocaleString()}/year`
+                : 'e.g. 100% match up to $11,750/year (50% of IRS limit)'}
             </Text>
           </View>
           </FadeInView>

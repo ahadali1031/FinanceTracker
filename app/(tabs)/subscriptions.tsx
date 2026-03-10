@@ -126,6 +126,11 @@ function AnimatedSubscriptionRow({
                 <Text style={[styles.rowSubtitle, { color: colors.textSecondary, fontSize: fontSize.sm }]}>
                   {item.frequency === 'monthly' ? 'Monthly' : 'Yearly'}
                 </Text>
+                {item.isBusiness && (
+                  <View style={{ backgroundColor: colors.primary + '18', borderRadius: 999, paddingHorizontal: 6, paddingVertical: 1 }}>
+                    <Text style={{ color: colors.primary, fontSize: fontSize.xs, fontWeight: fontWeight.semibold }}>Business</Text>
+                  </View>
+                )}
                 {nextBillingLabel && item.isActive && (
                   <Text style={[styles.rowSubtitle, { color: colors.textTertiary, fontSize: fontSize.xs }]}>
                     Next: {nextBillingLabel}

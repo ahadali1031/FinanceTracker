@@ -154,16 +154,19 @@ export default function DashboardScreen() {
     return () => unsubs.forEach((u) => u());
   }, [user?.uid]);
 
-  // Compute current month totals and net worth
-  // Net Worth = Assets only (savings + investments). Income/expenses are cash flow, not net worth.
-  const { monthlyExpenses, monthlyIncome, netWorth, investmentTotal, businessExpenses, businessIncome } = useMemo(() => {
+  // Compute current month totals, checking balance, and net worth
+  // Checking = all-time income - all-time expenses (transfers are already expenses)
+  // Net Worth = checking + savings + investments
+  const { monthlyExpenses, monthlyIncome, netWorth, investmentTotal, checkingBalance, businessExpenses, businessIncome } = useMemo(() => {
     const now = new Date();
     const year = now.getFullYear();
     const month = now.getMonth();
 
     let expMonthly = 0;
     let bizExp = 0;
+    let expAllTime = 0;
     for (const e of expenses) {
+      expAllTime += e.amount;
       const d = e.date.toDate();
       if (d.getFullYear() === year && d.getMonth() === month) {
         expMonthly += e.amount;
@@ -173,7 +176,9 @@ export default function DashboardScreen() {
 
     let incMonthly = 0;
     let bizInc = 0;
+    let incAllTime = 0;
     for (const i of incomes) {
+      incAllTime += i.amount;
       const d = i.date.toDate();
       if (d.getFullYear() === year && d.getMonth() === month) {
         incMonthly += i.amount;
@@ -181,6 +186,7 @@ export default function DashboardScreen() {
       }
     }
 
+    const checking = incAllTime - expAllTime;
     const savings = getTotalSavings();
 
     let investTotal = 0;
@@ -191,12 +197,24 @@ export default function DashboardScreen() {
       }
     }
 
-    const nw = savings + investTotal;
+    const nw = checking + savings + investTotal;
 
-    return { monthlyExpenses: expMonthly, monthlyIncome: incMonthly, netWorth: nw, investmentTotal: investTotal, businessExpenses: bizExp, businessIncome: bizInc };
+    return { monthlyExpenses: expMonthly, monthlyIncome: incMonthly, netWorth: nw, investmentTotal: investTotal, checkingBalance: checking, businessExpenses: bizExp, businessIncome: bizInc };
   }, [expenses, incomes, getTotalSavings, investmentAccounts, investmentHoldings]);
 
   const monthlySubscriptions = useMemo(() => getMonthlyTotal(), [subscriptions]);
+
+  // Add business subscriptions to business expense total
+  const businessSubscriptions = useMemo(() => {
+    let total = 0;
+    for (const sub of subscriptions) {
+      if (sub.isBusiness && sub.isActive) {
+        total += sub.frequency === 'monthly' ? sub.amount : sub.amount / 12;
+      }
+    }
+    return total;
+  }, [subscriptions]);
+  const totalBusinessExpenses = businessExpenses + businessSubscriptions;
 
   return (
     <ScrollView
@@ -288,6 +306,20 @@ export default function DashboardScreen() {
         />
       </View>
 
+      {/* Checking Balance */}
+      <View style={{ marginBottom: 12 }}>
+        <SummaryCard
+          label="Checking Balance"
+          amount={checkingBalance}
+          accentColor={colors.primary}
+          delay={375}
+          colors={colors}
+          fontSize={fontSize}
+          fontWeight={fontWeight}
+          borderRadius={borderRadius}
+        />
+      </View>
+
       {/* Subscriptions Card — tappable to manage */}
       <FadeInView delay={400}>
         <Pressable
@@ -338,7 +370,7 @@ export default function DashboardScreen() {
       </FadeInView>
 
       {/* Business Summary — only show if there are business transactions */}
-      {(businessExpenses > 0 || businessIncome > 0) && (
+      {(totalBusinessExpenses > 0 || businessIncome > 0) && (
         <FadeInView delay={450}>
           <Pressable
             onPress={() => router.push('/(tabs)/expenses' as any)}
@@ -373,13 +405,13 @@ export default function DashboardScreen() {
                 </View>
                 <Text style={{ color: colors.textTertiary, fontSize: fontSize.lg }}>−</Text>
                 <View>
-                  <Text style={{ color: colors.expense, fontSize: fontSize.lg, fontWeight: fontWeight.bold }}>{formatCurrency(businessExpenses)}</Text>
+                  <Text style={{ color: colors.expense, fontSize: fontSize.lg, fontWeight: fontWeight.bold }}>{formatCurrency(totalBusinessExpenses)}</Text>
                   <Text style={{ color: colors.textTertiary, fontSize: fontSize.xs }}>Expenses</Text>
                 </View>
                 <Text style={{ color: colors.textTertiary, fontSize: fontSize.lg }}>=</Text>
                 <View>
-                  <Text style={{ color: businessIncome - businessExpenses >= 0 ? colors.income : colors.expense, fontSize: fontSize.lg, fontWeight: fontWeight.bold }}>
-                    {formatCurrency(businessIncome - businessExpenses)}
+                  <Text style={{ color: businessIncome - totalBusinessExpenses >= 0 ? colors.income : colors.expense, fontSize: fontSize.lg, fontWeight: fontWeight.bold }}>
+                    {formatCurrency(businessIncome - totalBusinessExpenses)}
                   </Text>
                   <Text style={{ color: colors.textTertiary, fontSize: fontSize.xs }}>Net</Text>
                 </View>

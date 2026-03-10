@@ -9,6 +9,7 @@ import {
   Platform,
   Animated,
   ActivityIndicator,
+  Switch,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Timestamp } from 'firebase/firestore';
@@ -51,6 +52,7 @@ export default function SavingsAccountDetailScreen() {
   const [date, setDate] = useState(new Date());
   const [showCalendar, setShowCalendar] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [isTransfer, setIsTransfer] = useState(true);
 
   const currentBalance = accountSnapshots.length > 0 ? accountSnapshots[0].balance : 0;
   const previousBalance = accountSnapshots.length > 1 ? accountSnapshots[1].balance : null;
@@ -63,9 +65,11 @@ export default function SavingsAccountDetailScreen() {
 
     setSaving(true);
     try {
+      const transferAmount = isTransfer && currentBalance > 0 ? Math.max(0, parsed - currentBalance) : isTransfer ? parsed : 0;
       await addSnapshot(user.uid, id, {
         balance: parsed,
         snapshotDate: Timestamp.fromDate(date),
+        ...(isTransfer && { isTransfer: true, transferAmount }),
       } as any);
       setBalance('');
       setDate(new Date());
@@ -174,6 +178,18 @@ export default function SavingsAccountDetailScreen() {
                 </View>
               )}
             </View>
+            <View style={[styles.switchRow, { backgroundColor: colors.background, borderRadius: borderRadius.md, borderWidth: 1, borderColor: colors.border, padding: spacing.md, marginTop: spacing.md }]}>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: colors.text, fontSize: fontSize.md, fontWeight: fontWeight.medium }}>Transfer from Checking</Text>
+                <Text style={{ color: colors.textSecondary, fontSize: fontSize.xs, marginTop: 2 }}>Deducts the deposit amount from checking</Text>
+              </View>
+              <Switch
+                value={isTransfer}
+                onValueChange={setIsTransfer}
+                trackColor={{ false: colors.border, true: colors.savings + '60' }}
+                thumbColor={isTransfer ? colors.savings : colors.textSecondary}
+              />
+            </View>
             <View style={{ marginTop: spacing.md }}>
               <Button title="Save Balance" onPress={handleAddSnapshot} loading={saving} disabled={saving || !balance} />
             </View>
@@ -250,6 +266,7 @@ const styles = StyleSheet.create({
   changeRow: { flexDirection: 'row', alignItems: 'center' },
   addButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
   addForm: {},
+  switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   dateDisplay: { flexDirection: 'row', alignItems: 'center' },
   deleteRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
   snapshotRow: { flexDirection: 'row', alignItems: 'center' },

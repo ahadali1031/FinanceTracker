@@ -51,6 +51,7 @@ const TRANSACTION_TYPE_CONFIG: Record<string, { icon: string; color: string; pre
   buy: { icon: 'arrow-down-circle', color: '#10B981', prefix: 'Bought' },
   sell: { icon: 'arrow-up-circle', color: '#F43F5E', prefix: 'Sold' },
   dividend: { icon: 'cash', color: '#F59E0B', prefix: 'Dividend' },
+  employer_match: { icon: 'gift', color: '#10B981', prefix: 'Match' },
 };
 
 export default function InvestmentAccountScreen() {
@@ -59,7 +60,7 @@ export default function InvestmentAccountScreen() {
   const router = useRouter();
 
   const user = useAuthStore((s) => s.user);
-  const { accounts, holdings, transactions, subscribeToAccounts, subscribeToTransactions, updateAccount, updateHolding, removeHolding, deleteTransaction } = useInvestmentStore();
+  const { accounts, holdings, transactions, subscribeToAccounts, subscribeToTransactions, updateAccount, updateHolding, removeHolding, updateTransaction, deleteTransaction } = useInvestmentStore();
 
   const [activeTab, setActiveTab] = useState<'holdings' | 'transactions'>('holdings');
   const [editingName, setEditingName] = useState(false);
@@ -118,6 +119,14 @@ export default function InvestmentAccountScreen() {
       }
     },
     [user?.uid, accountId, removeHolding],
+  );
+
+  const handleEditTransaction = useCallback(
+    async (txId: string, data: Partial<Omit<InvestmentTransaction, 'id'>>) => {
+      if (!user?.uid || !accountId) return;
+      await updateTransaction(user.uid, accountId, txId, data);
+    },
+    [user?.uid, accountId, updateTransaction],
   );
 
   const handleDeleteTransaction = useCallback(
@@ -313,6 +322,7 @@ export default function InvestmentAccountScreen() {
                   key={tx.id}
                   transaction={tx}
                   index={index}
+                  onEdit={(data) => handleEditTransaction(tx.id, data)}
                   onDelete={() => handleDeleteTransaction(tx.id)}
                   colors={colors}
                   spacing={spacing}
@@ -531,6 +541,7 @@ function HoldingRow({
 function TransactionRow({
   transaction,
   index,
+  onEdit,
   onDelete,
   colors,
   spacing,
@@ -540,6 +551,7 @@ function TransactionRow({
 }: {
   transaction: InvestmentTransaction;
   index: number;
+  onEdit: (data: Partial<Omit<InvestmentTransaction, 'id'>>) => void;
   onDelete: () => void;
   colors: any;
   spacing: any;
@@ -548,6 +560,10 @@ function TransactionRow({
   fontWeight: any;
 }) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const [editing, setEditing] = useState(false);
+  const [editShares, setEditShares] = useState('');
+  const [editPrice, setEditPrice] = useState('');
+  const [editTotal, setEditTotal] = useState('');
 
   useEffect(() => {
     Animated.timing(fadeAnim, {
@@ -560,12 +576,28 @@ function TransactionRow({
 
   const config = TRANSACTION_TYPE_CONFIG[transaction.type] ?? TRANSACTION_TYPE_CONFIG.buy;
   const dateStr = transaction.date?.toDate?.() ? formatDate(transaction.date) : '';
+  const isDividend = transaction.type === 'dividend';
+  const isMatch = transaction.type === 'employer_match';
+
+  const handleSaveEdit = () => {
+    if (isDividend) {
+      const total = parseFloat(editTotal);
+      if (!total || total <= 0) return;
+      onEdit({ totalAmount: total });
+    } else {
+      const s = parseFloat(editShares);
+      const p = parseFloat(editPrice);
+      if (!s || s <= 0 || !p || p <= 0) return;
+      onEdit({ shares: s, pricePerShare: p, totalAmount: s * p });
+    }
+    setEditing(false);
+  };
 
   return (
     <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: fadeAnim.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }] }}>
       <Card style={[styles.holdingRow, { marginHorizontal: spacing.md, marginBottom: spacing.sm }]}>
         <View style={[styles.accentBar, { backgroundColor: config.color, borderTopLeftRadius: borderRadius.md, borderBottomLeftRadius: borderRadius.md }]} />
-        <View style={[styles.holdingContent, { paddingVertical: spacing.md, paddingHorizontal: spacing.md }]}>
+        <Pressable onPress={() => { if (!editing) { setEditing(true); setEditShares(String(transaction.shares)); setEditPrice(String(transaction.pricePerShare)); setEditTotal(String(transaction.totalAmount)); } }} style={[styles.holdingContent, { paddingVertical: spacing.md, paddingHorizontal: spacing.md }]}>
           <View style={styles.holdingLeft}>
             <Ionicons name={config.icon as any} size={22} color={config.color} style={{ marginRight: spacing.sm }} />
             <View style={{ flex: 1 }}>
@@ -573,28 +605,105 @@ function TransactionRow({
                 {config.prefix} {transaction.ticker}
               </Text>
               <Text style={[{ color: colors.textSecondary, fontSize: fontSize.sm, marginTop: 2 }]}>
-                {transaction.type === 'dividend'
+                {isDividend
                   ? `${formatCurrency(transaction.totalAmount)}`
                   : `${transaction.shares} × $${transaction.pricePerShare.toFixed(2)}`}
               </Text>
               <Text style={[{ color: colors.textTertiary, fontSize: fontSize.xs, marginTop: 2 }]}>
                 {dateStr}
+                {isMatch && ' · Employer Match'}
+                {transaction.isTransfer && ' · Transfer'}
               </Text>
             </View>
           </View>
           <View style={styles.holdingRight}>
             <Text style={[{ color: config.color, fontSize: fontSize.md, fontWeight: fontWeight.semibold }]}>
-              {transaction.type === 'sell' ? '+' : '-'}{formatCurrency(transaction.totalAmount)}
+              {transaction.type === 'sell' ? '+' : isMatch ? '+' : '-'}{formatCurrency(transaction.totalAmount)}
             </Text>
-            <Pressable
-              onPress={onDelete}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              style={({ pressed }) => [styles.deleteButton, { backgroundColor: pressed ? colors.border : 'transparent', borderRadius: borderRadius.sm }]}
-            >
-              <Ionicons name="trash-outline" size={16} color={colors.danger} />
-            </Pressable>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <Pressable
+                onPress={() => setEditing(!editing)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                style={({ pressed }) => [styles.deleteButton, { backgroundColor: pressed ? colors.border : 'transparent', borderRadius: borderRadius.sm }]}
+              >
+                <Ionicons name="pencil" size={14} color={colors.textTertiary} />
+              </Pressable>
+              <Pressable
+                onPress={onDelete}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                style={({ pressed }) => [styles.deleteButton, { backgroundColor: pressed ? colors.border : 'transparent', borderRadius: borderRadius.sm }]}
+              >
+                <Ionicons name="trash-outline" size={16} color={colors.danger} />
+              </Pressable>
+            </View>
           </View>
-        </View>
+        </Pressable>
+        {/* Inline edit form */}
+        {editing && (
+          <View style={{ paddingHorizontal: spacing.md, paddingBottom: spacing.md, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.md }}>
+            <Text style={{ color: colors.text, fontSize: fontSize.sm, fontWeight: fontWeight.semibold, marginBottom: spacing.sm }}>Edit Transaction</Text>
+            {isDividend ? (
+              <View>
+                <Text style={{ color: colors.textSecondary, fontSize: fontSize.xs, marginBottom: 4 }}>Dividend Amount ($)</Text>
+                <TextInput
+                  style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: borderRadius.md, padding: spacing.sm, color: colors.text, fontSize: fontSize.md }}
+                  value={editTotal}
+                  onChangeText={setEditTotal}
+                  keyboardType="decimal-pad"
+                />
+              </View>
+            ) : (
+              <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: colors.textSecondary, fontSize: fontSize.xs, marginBottom: 4 }}>Shares</Text>
+                  <TextInput
+                    style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: borderRadius.md, padding: spacing.sm, color: colors.text, fontSize: fontSize.md }}
+                    value={editShares}
+                    onChangeText={setEditShares}
+                    keyboardType="decimal-pad"
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: colors.textSecondary, fontSize: fontSize.xs, marginBottom: 4 }}>Price ($)</Text>
+                  <TextInput
+                    style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: borderRadius.md, padding: spacing.sm, color: colors.text, fontSize: fontSize.md }}
+                    value={editPrice}
+                    onChangeText={setEditPrice}
+                    keyboardType="decimal-pad"
+                  />
+                </View>
+              </View>
+            )}
+            <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm }}>
+              <Pressable
+                onPress={handleSaveEdit}
+                style={({ pressed }) => ({
+                  flex: 1,
+                  backgroundColor: pressed ? config.color + '30' : config.color + '15',
+                  borderRadius: borderRadius.md,
+                  paddingVertical: spacing.sm,
+                  alignItems: 'center' as const,
+                })}
+              >
+                <Text style={{ color: config.color, fontSize: fontSize.sm, fontWeight: fontWeight.semibold }}>Save</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => setEditing(false)}
+                style={({ pressed }) => ({
+                  flex: 1,
+                  backgroundColor: pressed ? colors.border + '50' : colors.surface,
+                  borderRadius: borderRadius.md,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  paddingVertical: spacing.sm,
+                  alignItems: 'center' as const,
+                })}
+              >
+                <Text style={{ color: colors.textSecondary, fontSize: fontSize.sm, fontWeight: fontWeight.semibold }}>Cancel</Text>
+              </Pressable>
+            </View>
+          </View>
+        )}
       </Card>
     </Animated.View>
   );

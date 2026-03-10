@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import {
   StyleSheet,
   View,
@@ -70,6 +70,8 @@ export default function AddTransactionScreen() {
 
   const [selectedAccountId, setSelectedAccountId] = useState(paramAccountId ?? '');
   const accountId = paramAccountId || selectedAccountId;
+  const selectedAccount = useMemo(() => accounts.find((a) => a.id === accountId), [accounts, accountId]);
+  const is401k = selectedAccount?.accountType === '401k';
 
   // Subscribe to accounts if we need to pick one
   useEffect(() => {
@@ -89,6 +91,7 @@ export default function AddTransactionScreen() {
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<{ ticker?: string; shares?: string; price?: string; amount?: string }>({});
   const [isReinvested, setIsReinvested] = useState(false);
+  const [isTransfer, setIsTransfer] = useState(true);
   const [searching, setSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<SymbolSearchResult[]>([]);
   const [showResults, setShowResults] = useState(false);
@@ -151,35 +154,68 @@ export default function AddTransactionScreen() {
 
     setSaving(true);
     try {
+      const tickerUpper = ticker.trim().toUpperCase();
+      const txDate = Timestamp.fromDate(date);
+
       // Add the transaction
-      await addTransaction(user.uid, accountId, {
-        ticker: ticker.trim().toUpperCase(),
-        type: txType,
-        shares: parsedShares,
-        pricePerShare: parsedPrice,
-        totalAmount: finalTotal,
-        date: Timestamp.fromDate(date),
-        ...(txType === 'dividend' && { isReinvested }),
-      });
+      const writes: Promise<void>[] = [
+        addTransaction(user.uid, accountId, {
+          ticker: tickerUpper,
+          type: txType,
+          shares: parsedShares,
+          pricePerShare: parsedPrice,
+          totalAmount: finalTotal,
+          date: txDate,
+          ...(txType === 'dividend' && { isReinvested }),
+          ...((txType === 'buy' || txType === 'sell') && { isTransfer }),
+        }),
+      ];
 
       // For buy transactions, also add/update the holding
       if (txType === 'buy') {
-        await addHolding(user.uid, accountId, {
-          ticker: ticker.trim().toUpperCase(),
+        writes.push(addHolding(user.uid, accountId, {
+          ticker: tickerUpper,
           shares: parsedShares,
           costBasis: finalTotal,
-        });
+        }));
+
+        // Auto-generate employer match for 401k accounts
+        if (is401k && selectedAccount?.employerMatch && selectedAccount?.employerMatchCap) {
+          const matchRate = selectedAccount.employerMatch / 100;
+          const cappedMatch = Math.min(finalTotal * matchRate, selectedAccount.employerMatchCap);
+
+          if (cappedMatch > 0) {
+            const matchShares = cappedMatch / parsedPrice;
+            writes.push(
+              addTransaction(user.uid, accountId, {
+                ticker: tickerUpper,
+                type: 'employer_match',
+                shares: matchShares,
+                pricePerShare: parsedPrice,
+                totalAmount: cappedMatch,
+                date: txDate,
+              }),
+              addHolding(user.uid, accountId, {
+                ticker: tickerUpper,
+                shares: matchShares,
+                costBasis: cappedMatch,
+              }),
+            );
+          }
+        }
       }
 
       // For reinvested dividends, add shares as a holding too
       if (txType === 'dividend' && isReinvested && parsedPrice > 0) {
         const reinvestedShares = finalTotal / parsedPrice;
-        await addHolding(user.uid, accountId, {
-          ticker: ticker.trim().toUpperCase(),
+        writes.push(addHolding(user.uid, accountId, {
+          ticker: tickerUpper,
           shares: reinvestedShares,
           costBasis: finalTotal,
-        });
+        }));
       }
+
+      await Promise.all(writes);
 
       router.back();
     } catch (error) {
@@ -467,8 +503,39 @@ export default function AddTransactionScreen() {
         )}
         </FadeInView>
 
+        {/* Transfer from Checking toggle — for buy/sell */}
+        {(txType === 'buy' || txType === 'sell') && (
+          <FadeInView delay={350}>
+            <View style={[styles.switchRow, { backgroundColor: colors.surface, borderRadius: borderRadius.md, borderWidth: 1, borderColor: colors.border, padding: spacing.md, marginBottom: spacing.md }]}>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: colors.text, fontSize: fontSize.md, fontWeight: fontWeight.medium }}>
+                  {txType === 'buy' ? 'Transfer from Checking' : 'Transfer to Checking'}
+                </Text>
+                <Text style={{ color: colors.textSecondary, fontSize: fontSize.xs, marginTop: 2 }}>
+                  {txType === 'buy' ? 'Deducts from your checking balance' : 'Adds to your checking balance'}
+                </Text>
+              </View>
+              <Switch
+                value={isTransfer}
+                onValueChange={setIsTransfer}
+                trackColor={{ false: colors.border, true: colors.investment + '60' }}
+                thumbColor={isTransfer ? colors.investment : colors.textSecondary}
+              />
+            </View>
+            {is401k && txType === 'buy' && selectedAccount?.employerMatch && (
+              <View style={[styles.matchPreview, { backgroundColor: colors.income + '10', borderRadius: borderRadius.md, borderWidth: 1, borderColor: colors.income + '30', padding: spacing.md, marginBottom: spacing.md }]}>
+                <Ionicons name="gift" size={18} color={colors.income} />
+                <Text style={{ color: colors.income, fontSize: fontSize.sm, marginLeft: spacing.sm, flex: 1 }}>
+                  Employer matches {selectedAccount.employerMatch}%{selectedAccount.employerMatchCap ? ` up to $${selectedAccount.employerMatchCap.toLocaleString()}/yr` : ''}
+                  {computedTotal > 0 && ` — +$${Math.min(computedTotal * (selectedAccount.employerMatch / 100), selectedAccount.employerMatchCap ?? Infinity).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} match`}
+                </Text>
+              </View>
+            )}
+          </FadeInView>
+        )}
+
         {/* Date */}
-        <FadeInView delay={400}>
+        <FadeInView delay={txType === 'dividend' ? 400 : 450}>
         <View style={[styles.fieldSection, { marginBottom: spacing.lg }]}>
           <Text style={[styles.fieldLabel, { color: colors.text, fontSize: fontSize.sm, fontWeight: fontWeight.semibold, marginBottom: spacing.sm }]}>Date</Text>
           <Pressable
@@ -488,7 +555,7 @@ export default function AddTransactionScreen() {
         </FadeInView>
 
         {/* Actions */}
-        <FadeInView delay={500}>
+        <FadeInView delay={txType === 'dividend' ? 500 : 550}>
         <View style={[styles.actions, { gap: spacing.md }]}>
           <Button
             title={txType === 'dividend' ? 'Record Dividend' : txType === 'buy' ? 'Record Purchase' : 'Record Sale'}
@@ -525,6 +592,7 @@ const styles = StyleSheet.create({
   searchResultLeft: { flex: 1, marginRight: 8 },
   searchResultBadge: {},
   switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  matchPreview: { flexDirection: 'row', alignItems: 'center' },
   typeRow: { flexDirection: 'row' },
   typeButton: { flex: 1, alignItems: 'center' },
   totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },

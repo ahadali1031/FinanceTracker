@@ -10,6 +10,7 @@ import {
   Platform,
   ActivityIndicator,
   Animated,
+  Switch,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Timestamp } from 'firebase/firestore';
@@ -65,6 +66,7 @@ export default function SubscriptionDetailScreen() {
   const [hasEndDate, setHasEndDate] = useState(false);
   const [endDate, setEndDate] = useState<Date | null>(null);
   const [showEndDateInput, setShowEndDateInput] = useState(false);
+  const [isBusiness, setIsBusiness] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -74,6 +76,7 @@ export default function SubscriptionDetailScreen() {
     setFrequency(sub.frequency);
     setCategory(sub.category);
     setStartDate(sub.startDate.toDate());
+    setIsBusiness(sub.isBusiness ?? false);
     if (sub.endDate) {
       setHasEndDate(true);
       setEndDate(sub.endDate.toDate());
@@ -97,6 +100,7 @@ export default function SubscriptionDetailScreen() {
         startDate: Timestamp.fromDate(startDate),
         endDate: hasEndDate && endDate ? Timestamp.fromDate(endDate) : null,
         nextBillingDate: Timestamp.fromDate(nextBilling),
+        isBusiness,
       });
       router.back();
     } catch {
@@ -191,8 +195,24 @@ export default function SubscriptionDetailScreen() {
         </View>
         </FadeInView>
 
+        {/* Business toggle */}
+        <FadeInView delay={300}>
+          <View style={[styles.switchRow, { backgroundColor: colors.surface, borderRadius: borderRadius.md, borderWidth: 1, borderColor: colors.border, padding: spacing.md, marginBottom: spacing.md }]}>
+            <View style={{ flex: 1, marginRight: 12 }}>
+              <Text style={{ color: colors.text, fontSize: fontSize.md, fontWeight: fontWeight.medium }}>Business Subscription</Text>
+              <Text style={{ color: colors.textTertiary, fontSize: fontSize.xs, marginTop: 2 }}>Flag as business-related</Text>
+            </View>
+            <Switch
+              value={isBusiness}
+              onValueChange={setIsBusiness}
+              trackColor={{ false: colors.border, true: colors.primary + '60' }}
+              thumbColor={isBusiness ? colors.primary : '#fff'}
+            />
+          </View>
+        </FadeInView>
+
         {/* Start Date */}
-        <FadeInView delay={320}>
+        <FadeInView delay={380}>
         <View style={[styles.fieldSection, { marginBottom: spacing.md }]}>
           <Text style={[styles.fieldLabel, { color: colors.text, fontSize: fontSize.sm, fontWeight: fontWeight.semibold, marginBottom: spacing.sm }]}>Start Date</Text>
           {showDateInput ? (
@@ -213,7 +233,7 @@ export default function SubscriptionDetailScreen() {
         </FadeInView>
 
         {/* End Date */}
-        <FadeInView delay={400}>
+        <FadeInView delay={460}>
         <View style={[styles.fieldSection, { marginBottom: spacing.lg }]}>
           <Pressable onPress={() => { setHasEndDate(!hasEndDate); if (!hasEndDate && !endDate) { const d = new Date(startDate); d.setFullYear(d.getFullYear() + 1); setEndDate(d); } }} style={[styles.optionalRow, { paddingVertical: spacing.sm }]}>
             <Ionicons name={hasEndDate ? 'checkbox' : 'square-outline'} size={22} color={hasEndDate ? colors.primary : colors.textTertiary} />
@@ -239,7 +259,7 @@ export default function SubscriptionDetailScreen() {
         </FadeInView>
 
         {/* Actions */}
-        <FadeInView delay={480}>
+        <FadeInView delay={540}>
         <View style={[styles.actions, { gap: spacing.md }]}>
           <Button title="Save Changes" onPress={handleSave} loading={saving} disabled={saving} />
           <Pressable onPress={handleDelete} style={({ pressed }) => [styles.deleteRow, { opacity: pressed ? 0.6 : 1, paddingVertical: spacing.md }]}>
@@ -268,6 +288,7 @@ const styles = StyleSheet.create({
   dateDisplay: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   dateInputRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   dateText: { flex: 1 },
+  switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   optionalRow: { flexDirection: 'row', alignItems: 'center' },
   actions: { marginTop: 8 },
   deleteRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },

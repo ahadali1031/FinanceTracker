@@ -60,7 +60,9 @@
 - [x] Holdings with current market prices, gain/loss ($, %)
 - [x] Ticker search via Alpha Vantage SYMBOL_SEARCH endpoint
 - [x] Recurring investments — auto-invest toggle per holding (day of month + amount)
-- [x] Employer match option for 401k contributions (match % + salary % limit)
+- [x] Employer match option for 401k contributions (match % + $ annual cap, default 100% / $11,750)
+- [x] Auto employer match transaction on 401k buy (employer_match type, adds shares without deducting checking)
+- [x] Inline transaction editing (tap pencil to adjust shares/price/amount)
 - [x] DRIP handling via "Reinvested" toggle on dividend transactions
 - [x] Delete transaction adjusts holdings (removes shares/cost basis)
 - [ ] Portfolio allocation donut chart (moved to Phase 5)
@@ -72,7 +74,9 @@
 - [x] **Edit Expense form**: Business toggle (retroactive flagging)
 - [x] **Transactions filter bar**: Pill buttons — All | Expenses | Income | Business | Personal
 - [x] **Business badge**: Show "Business" pill on flagged transaction rows (expenses + income)
-- [x] **Dashboard business summary card**: Business Income, Business Expenses, Net Business Gain for current month
+- [x] **Subscription business toggle**: isBusiness flag on subscriptions (add + edit forms)
+- [x] **Subscription business badge**: "Business" pill on flagged subscription rows
+- [x] **Dashboard business summary card**: Business Income, Business Expenses (incl. business subscriptions), Net Business Gain for current month
 - [x] **Transactions business summary**: Income/Expenses/Net breakdown card when business transactions exist
 - [ ] **Dashboard chart**: Business net gains bar/line chart (monthly trend) — moved to Phase 5
 - [ ] **Sort/filter by category**: Category filter dropdown on transactions tab — moved to Phase 5
@@ -82,6 +86,15 @@
 - Filter bar is a horizontal scroll of pill buttons, applied in the `useMemo` that builds transaction list
 - Business summary on dashboard computed from filtered expenses/incomes in current month
 - Chart uses same data, grouped by month for last 6 months
+
+## Phase 4.6: Checking & Transfer System ✅
+- [x] Checking balance = all-time income - all-time expenses (computed, no manual entry)
+- [x] Net worth = checking + savings + investments
+- [x] Checking Balance card on dashboard
+- [x] "Transfer from Checking" toggle (default ON) on investment buy/sell transactions
+- [x] "Transfer from Checking" toggle (default ON) on savings balance updates
+- [x] isTransfer/transferTo fields on Expense, InvestmentTransaction, SavingsSnapshot types
+- [x] Firestore writes parallelized with Promise.all for 401k buy + match
 
 ## Phase 5: Savings, Dashboard Charts & Budget 🔲
 - [x] Savings accounts list — name, institution, latest balance, emergency fund badge
@@ -151,3 +164,7 @@
 - Web uses window.confirm for delete, native uses Alert.alert
 - Business/personal flag on expenses & income — filter and chart on dashboard
 - react-native-calendars for date selection across all forms
+- Checking is a computed account (income - expenses), not a Firestore collection
+- Transfers between own accounts (checking → savings/investment) don't affect net worth
+- 401k employer match auto-generates employer_match transactions (editable after the fact)
+- YTD cap enforcement for employer match is TODO (currently caps per-contribution)

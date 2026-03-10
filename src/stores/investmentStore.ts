@@ -56,6 +56,12 @@ interface InvestmentState {
     accountId: string,
     data: Omit<InvestmentTransaction, "id">
   ) => Promise<void>;
+  updateTransaction: (
+    uid: string,
+    accountId: string,
+    transactionId: string,
+    data: Partial<Omit<InvestmentTransaction, "id">>
+  ) => Promise<void>;
   deleteTransaction: (
     uid: string,
     accountId: string,
@@ -211,6 +217,19 @@ export const useInvestmentStore = create<InvestmentState>((set, get) => ({
       ),
       data
     );
+  },
+
+  updateTransaction: async (uid, accountId, transactionId, data) => {
+    const ref = doc(
+      db,
+      "users",
+      uid,
+      "investmentAccounts",
+      accountId,
+      "transactions",
+      transactionId
+    );
+    await updateDoc(ref, data);
   },
 
   deleteTransaction: async (uid, accountId, transactionId) => {

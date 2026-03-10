@@ -12,7 +12,7 @@ import { useTheme } from '@/constants/useTheme';
 
 interface InputProps {
   label?: string;
-  placeholder: string;
+  placeholder?: string;
   value: string;
   onChangeText: (text: string) => void;
   keyboardType?: KeyboardTypeOptions;

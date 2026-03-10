@@ -15,6 +15,8 @@ export interface Expense {
   date: Timestamp;
   createdAt: Timestamp;
   isBusiness?: boolean;
+  isTransfer?: boolean; // true = transfer to savings/investment, deducts from checking
+  transferTo?: string; // account ID this transfer went to
 }
 
 export interface Income {
@@ -41,6 +43,7 @@ export interface Subscription {
   isActive: boolean;
   nextBillingDate: Timestamp;
   createdAt: Timestamp;
+  isBusiness?: boolean;
 }
 
 export type InvestmentAccountType =
@@ -55,8 +58,9 @@ export interface InvestmentAccount {
   name: string;
   accountType: InvestmentAccountType;
   institution: string;
-  employerMatch?: number; // percentage (e.g. 50 = 50% match), only for 401k
-  employerMatchLimit?: number; // max % of salary matched (e.g. 6 = up to 6% of salary)
+  employerMatch?: number; // 1:1 = 100, percentage employer matches
+  employerMatchCap?: number; // dollar cap on employer match per year (e.g. 50% of IRS limit = 11750)
+  salary?: number; // annual salary for match calculations
 }
 
 export interface Holding {
@@ -69,7 +73,7 @@ export interface Holding {
   recurringAmount?: number; // $ amount per occurrence
 }
 
-export type InvestmentTransactionType = "buy" | "sell" | "dividend";
+export type InvestmentTransactionType = "buy" | "sell" | "dividend" | "employer_match";
 
 export interface InvestmentTransaction {
   id: string;
@@ -80,6 +84,7 @@ export interface InvestmentTransaction {
   totalAmount: number;
   date: Timestamp;
   isReinvested?: boolean; // DRIP — dividend was reinvested into more shares
+  isTransfer?: boolean; // true = funded from checking account
 }
 
 export interface InvestmentSnapshot {
@@ -99,6 +104,8 @@ export interface SavingsSnapshot {
   id: string;
   balance: number;
   snapshotDate: Timestamp;
+  isTransfer?: boolean; // true = deposit from checking
+  transferAmount?: number; // how much was transferred (snapshot balance may differ due to interest etc)
 }
 
 export interface BudgetTarget {
