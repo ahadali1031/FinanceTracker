@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { GuideModal } from '@/src/components/ui';
 import {
   signInAnonymously,
   GoogleAuthProvider,
@@ -97,6 +98,7 @@ export default function LoginScreen() {
   const circle2 = useRef(new Animated.Value(0)).current;
   const circle3 = useRef(new Animated.Value(0)).current;
   const [signingIn, setSigningIn] = useState(false);
+  const [guideVisible, setGuideVisible] = useState(false);
 
   const [request, response, promptAsync] = Google.useAuthRequest({
     webClientId: GOOGLE_WEB_CLIENT_ID,
@@ -364,7 +366,14 @@ export default function LoginScreen() {
         </Text>
       </Animated.View>
 
+      <TouchableOpacity onPress={() => setGuideVisible(true)} style={styles.guideLink}>
+        <Ionicons name="help-circle-outline" size={18} color={colors.textTertiary} />
+        <Text style={[styles.guideLinkText, { color: colors.textTertiary }]}>How to use this app</Text>
+      </TouchableOpacity>
+
       <View style={styles.bottomSpacer} />
+
+      <GuideModal visible={guideVisible} onClose={() => setGuideVisible(false)} />
     </SafeAreaView>
   );
 }
@@ -420,6 +429,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     letterSpacing: 0.3,
+  },
+  guideLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 20,
+    gap: 6,
+  },
+  guideLinkText: {
+    fontSize: 14,
+    fontWeight: '500',
   },
   bottomSpacer: {
     height: 60,

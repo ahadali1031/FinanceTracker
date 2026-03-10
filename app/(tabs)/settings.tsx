@@ -18,6 +18,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { useAuthStore } from '@/src/stores/authStore';
 import { useTheme } from '@/constants/useTheme';
 import { useToastStore } from '@/src/stores/toastStore';
+import { GuideModal } from '@/src/components/ui';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -87,6 +88,7 @@ export default function SettingsScreen() {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(20)).current;
   const [linking, setLinking] = useState(false);
+  const [guideVisible, setGuideVisible] = useState(false);
 
   const [request, response, promptAsync] = Google.useAuthRequest({
     webClientId: GOOGLE_WEB_CLIENT_ID,
@@ -221,6 +223,16 @@ export default function SettingsScreen() {
             />
           )}
 
+          {/* How to Use */}
+          <SettingsRow
+            icon="help-circle-outline"
+            iconColor={colors.investment}
+            label="How to Use"
+            subtitle="Learn how the app works"
+            onPress={() => setGuideVisible(true)}
+            {...themeProps}
+          />
+
           {/* Manage Budgets */}
           <SettingsRow
             icon="wallet-outline"
@@ -269,6 +281,8 @@ export default function SettingsScreen() {
           Finance Tracker v1.0.0
         </Text>
       </Animated.View>
+
+      <GuideModal visible={guideVisible} onClose={() => setGuideVisible(false)} />
     </ScrollView>
   );
 }

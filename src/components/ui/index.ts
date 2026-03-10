@@ -9,3 +9,4 @@ export { SuccessToast } from './SuccessToast';
 export { SkeletonLoader, CardSkeleton, ListItemSkeleton, DashboardSkeleton } from './SkeletonLoader';
 export { ErrorBanner } from './ErrorBanner';
 export { FadeInView } from './FadeInView';
+export { GuideModal } from './GuideModal';
