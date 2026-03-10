@@ -18,7 +18,7 @@ import { useSubscriptionStore } from '@/src/stores/subscriptionStore';
 import { useSavingsStore } from '@/src/stores/savingsStore';
 import { useBudgetStore } from '@/src/stores/budgetStore';
 import { useInvestmentStore } from '@/src/stores/investmentStore';
-import { DashboardSkeleton } from '@/src/components/ui';
+import { DashboardSkeleton, ErrorBanner } from '@/src/components/ui';
 import { formatCurrency } from '@/src/utils/currency';
 import { getBatchQuotes, type StockQuote } from '@/src/lib/stock-api';
 
@@ -148,6 +148,9 @@ export default function DashboardScreen() {
 
   const expLoading = useExpenseStore((s) => s.loading);
   const incLoading = useIncomeStore((s) => s.loading);
+  const expError = useExpenseStore((s) => s.error);
+  const incError = useIncomeStore((s) => s.error);
+  const dataError = expError || incError;
 
   // Fetch current stock/crypto quotes for investment valuation
   const [quotes, setQuotes] = useState<Map<string, StockQuote>>(new Map());
@@ -357,6 +360,18 @@ export default function DashboardScreen() {
       contentContainerStyle={[styles.content, { padding: spacing.md }]}
       showsVerticalScrollIndicator={false}
     >
+      {dataError && (
+        <ErrorBanner
+          message={`Failed to load data: ${dataError}`}
+          onRetry={() => {
+            if (user?.uid) {
+              subscribeToExpenses(user.uid);
+              subscribeToIncome(user.uid);
+            }
+          }}
+        />
+      )}
+
       {/* Net Worth Hero Card */}
       <FadeInView delay={100}>
         <View

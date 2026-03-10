@@ -62,6 +62,7 @@ function RootLayoutNav() {
           email: firebaseUser.email ?? '',
           displayName: firebaseUser.displayName ?? null,
           photoURL: firebaseUser.photoURL ?? null,
+          isAnonymous: firebaseUser.isAnonymous,
         });
       } else {
         setUser(null);

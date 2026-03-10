@@ -11,7 +11,14 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { signInAnonymously, GoogleAuthProvider, signInWithCredential, signInWithPopup } from 'firebase/auth';
+import {
+  signInAnonymously,
+  GoogleAuthProvider,
+  signInWithCredential,
+  signInWithPopup,
+  linkWithCredential,
+  linkWithPopup,
+} from 'firebase/auth';
 import { auth } from '@/src/lib/firebase';
 import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
@@ -65,6 +72,16 @@ function AnimatedPressable({
   );
 }
 
+function getFriendlyAuthError(error: any): string | null {
+  const code = error?.code;
+  if (code === 'auth/popup-closed-by-user') return null;
+  if (code === 'auth/cancelled-popup-request') return null;
+  if (code === 'auth/network-request-failed') return 'Network error. Check your connection and try again.';
+  if (code === 'auth/too-many-requests') return 'Too many attempts. Please wait a moment and try again.';
+  if (code === 'auth/credential-already-in-use') return 'This Google account is already linked to another user.';
+  return 'Sign-in failed. Please try again.';
+}
+
 export default function LoginScreen() {
   const { colors } = useTheme();
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -115,7 +132,7 @@ export default function LoginScreen() {
     ]).start();
   }, []);
 
-  // Handle Google auth response
+  // Handle Google auth response (native)
   useEffect(() => {
     if (response?.type === 'success') {
       const { id_token } = response.params;
@@ -123,11 +140,10 @@ export default function LoginScreen() {
       setSigningIn(true);
       signInWithCredential(auth, credential)
         .catch((error) => {
-          const msg = error?.message ?? 'Google sign-in failed.';
-          if (Platform.OS === 'web') {
-            window.alert(msg);
-          } else {
-            Alert.alert('Sign-In Error', msg);
+          const msg = getFriendlyAuthError(error);
+          if (msg) {
+            if (Platform.OS === 'web') window.alert(msg);
+            else Alert.alert('Sign-In Error', msg);
           }
         })
         .finally(() => setSigningIn(false));
@@ -136,20 +152,33 @@ export default function LoginScreen() {
 
   const handleGoogleSignIn = async () => {
     if (Platform.OS === 'web') {
-      // Use Firebase popup sign-in directly on web
       setSigningIn(true);
       try {
         const provider = new GoogleAuthProvider();
-        await signInWithPopup(auth, provider);
+        // If currently anonymous, link the account to preserve data
+        if (auth.currentUser?.isAnonymous) {
+          await linkWithPopup(auth.currentUser, provider);
+        } else {
+          await signInWithPopup(auth, provider);
+        }
       } catch (error: any) {
-        if (error?.code !== 'auth/popup-closed-by-user') {
-          window.alert(error?.message ?? 'Google sign-in failed.');
+        // If linking fails because credential is already in use, sign in normally
+        if (error?.code === 'auth/credential-already-in-use') {
+          try {
+            const provider = new GoogleAuthProvider();
+            await signInWithPopup(auth, provider);
+          } catch (innerError: any) {
+            const msg = getFriendlyAuthError(innerError);
+            if (msg) window.alert(msg);
+          }
+        } else {
+          const msg = getFriendlyAuthError(error);
+          if (msg) window.alert(msg);
         }
       } finally {
         setSigningIn(false);
       }
     } else {
-      // Use expo-auth-session on native
       promptAsync();
     }
   };
@@ -159,11 +188,9 @@ export default function LoginScreen() {
     try {
       await signInAnonymously(auth);
     } catch (error: any) {
-      if (Platform.OS === 'web') {
-        window.alert(error.message);
-      } else {
-        Alert.alert('Sign-In Error', error.message);
-      }
+      const msg = getFriendlyAuthError(error) ?? 'Failed to continue as guest.';
+      if (Platform.OS === 'web') window.alert(msg);
+      else Alert.alert('Sign-In Error', msg);
     } finally {
       setSigningIn(false);
     }
@@ -202,6 +229,12 @@ export default function LoginScreen() {
       fontSize: 16,
       fontWeight: '600',
       letterSpacing: 0.3,
+    },
+    guestHint: {
+      color: colors.textTertiary,
+      fontSize: 12,
+      textAlign: 'center',
+      marginTop: 8,
     },
   });
 
@@ -262,6 +295,9 @@ export default function LoginScreen() {
         <AnimatedPressable onPress={handleAnonymousSignIn} style={dynamicStyles.guestButton} disabled={signingIn}>
           <Text style={dynamicStyles.guestButtonText}>Continue as Guest</Text>
         </AnimatedPressable>
+        <Text style={dynamicStyles.guestHint}>
+          Guest data is temporary. Sign in with Google to keep your data.
+        </Text>
       </Animated.View>
 
       <View style={styles.bottomSpacer} />

@@ -7,3 +7,4 @@ export { EmptyState } from './EmptyState';
 export { CalendarPicker } from './CalendarPicker';
 export { SuccessToast } from './SuccessToast';
 export { SkeletonLoader, CardSkeleton, ListItemSkeleton, DashboardSkeleton } from './SkeletonLoader';
+export { ErrorBanner } from './ErrorBanner';
