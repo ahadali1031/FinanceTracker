@@ -8,17 +8,19 @@ import {
   Alert,
   ActivityIndicator,
   Animated,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@/constants/useTheme';
 import { Card, EmptyState } from '@/src/components/ui';
 import { useExpenseStore } from '@/src/stores/expenseStore';
+import { useIncomeStore } from '@/src/stores/incomeStore';
 import { useAuthStore } from '@/src/stores/authStore';
 import { formatCurrency } from '@/src/utils/currency';
 import { formatDate, formatMonthYear } from '@/src/utils/date';
 import { EXPENSE_CATEGORIES } from '@/src/utils/categories';
 import { Ionicons } from '@expo/vector-icons';
-import type { Expense } from '@/src/types';
+import type { Expense, Income } from '@/src/types';
 
 const categoryMap = new Map(EXPENSE_CATEGORIES.map((c) => [c.id, c]));
 
@@ -34,14 +36,16 @@ const CATEGORY_ACCENT_COLORS: Record<string, string> = {
   other: '#BB8FCE',
 };
 
-interface DateGroup {
-  dateKey: string;
-  dateLabel: string;
-  data: Expense[];
-}
+type Transaction =
+  | { type: 'expense'; data: Expense; dateMs: number }
+  | { type: 'income'; data: Income; dateMs: number };
 
-function AnimatedExpenseRow({
-  expense,
+type FlatItem =
+  | { kind: 'header'; dateLabel: string; key: string }
+  | { kind: 'transaction'; transaction: Transaction; key: string; index: number };
+
+function AnimatedTransactionRow({
+  transaction,
   index,
   onPress,
   onDelete,
@@ -51,9 +55,9 @@ function AnimatedExpenseRow({
   fontSize,
   fontWeight,
 }: {
-  expense: Expense;
+  transaction: Transaction;
   index: number;
-  onPress: () => void;
+  onPress?: () => void;
   onDelete: () => void;
   colors: ReturnType<typeof useTheme>['colors'];
   spacing: ReturnType<typeof useTheme>['spacing'];
@@ -67,40 +71,38 @@ function AnimatedExpenseRow({
     Animated.timing(fadeAnim, {
       toValue: 1,
       duration: 300,
-      delay: index * 60,
+      delay: Math.min(index * 50, 400),
       useNativeDriver: true,
     }).start();
   }, []);
 
-  const cat = categoryMap.get(expense.category);
-  const accentColor = CATEGORY_ACCENT_COLORS[expense.category] ?? colors.primary;
+  if (transaction.type === 'expense') {
+    const expense = transaction.data;
+    const cat = categoryMap.get(expense.category);
+    const accentColor = CATEGORY_ACCENT_COLORS[expense.category] ?? colors.primary;
 
-  return (
-    <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: fadeAnim.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }] }}>
-      <Card
-        style={[styles.expenseRow, { marginHorizontal: spacing.md, marginBottom: spacing.sm }]}
-        onPress={onPress}
-      >
-        <View style={[styles.accentBar, { backgroundColor: accentColor, borderTopLeftRadius: borderRadius.md, borderBottomLeftRadius: borderRadius.md }]} />
-        <View style={[styles.rowContent, { paddingVertical: spacing.md, paddingRight: spacing.md, paddingLeft: spacing.md }]}>
-          <View style={styles.rowLeft}>
-            <Ionicons name={(cat?.icon ?? 'ellipsis-horizontal') as any} size={24} color={accentColor} style={styles.categoryIcon} />
-            <View style={styles.rowText}>
-              <Text style={[styles.description, { color: colors.text, fontSize: fontSize.md, fontWeight: fontWeight.bold }]} numberOfLines={1}>
-                {expense.description || cat?.name || 'Expense'}
+    return (
+      <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: fadeAnim.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }] }}>
+        <Card style={[styles.row, { marginHorizontal: spacing.md, marginBottom: spacing.sm }]}>
+          <View style={[styles.accentBar, { backgroundColor: accentColor, borderTopLeftRadius: borderRadius.md, borderBottomLeftRadius: borderRadius.md }]} />
+          <View style={[styles.rowContent, { paddingVertical: spacing.md, paddingRight: spacing.md, paddingLeft: spacing.md }]}>
+            <Pressable style={styles.rowLeft} onPress={onPress}>
+              <Ionicons name={(cat?.icon ?? 'ellipsis-horizontal') as any} size={24} color={accentColor} style={styles.rowIcon} />
+              <View style={styles.rowText}>
+                <Text style={[styles.rowTitle, { color: colors.text, fontSize: fontSize.md, fontWeight: fontWeight.bold }]} numberOfLines={1}>
+                  {expense.description || cat?.name || 'Expense'}
+                </Text>
+                <Text style={[styles.rowSubtitle, { color: colors.textSecondary, fontSize: fontSize.sm }]}>
+                  {cat?.name ?? expense.category}
+                </Text>
+              </View>
+            </Pressable>
+            <View style={styles.rowRight}>
+              <Text style={[styles.rowAmount, { color: colors.expense, fontSize: fontSize.md, fontWeight: fontWeight.semibold }]}>
+                -{formatCurrency(expense.amount)}
               </Text>
-              <Text style={[styles.categoryName, { color: colors.textSecondary, fontSize: fontSize.sm }]}>
-                {cat?.name ?? expense.category}
-              </Text>
-            </View>
-          </View>
-          <View style={styles.rowRight}>
-            <Text style={[styles.amount, { color: colors.expense, fontSize: fontSize.md, fontWeight: fontWeight.semibold }]}>
-              -{formatCurrency(expense.amount)}
-            </Text>
-            <View onStartShouldSetResponder={() => true}>
               <Pressable
-                onPress={() => onDelete()}
+                onPress={onDelete}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 style={({ pressed }) => [styles.deleteButton, { backgroundColor: pressed ? colors.border : 'transparent', borderRadius: borderRadius.sm }]}
               >
@@ -108,63 +110,130 @@ function AnimatedExpenseRow({
               </Pressable>
             </View>
           </View>
+        </Card>
+      </Animated.View>
+    );
+  }
+
+  // Income row
+  const income = transaction.data;
+  return (
+    <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: fadeAnim.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }] }}>
+      <Card style={[styles.row, { marginHorizontal: spacing.md, marginBottom: spacing.sm }]}>
+        <View style={[styles.accentBar, { backgroundColor: colors.income, borderTopLeftRadius: borderRadius.md, borderBottomLeftRadius: borderRadius.md }]} />
+        <View style={[styles.rowContent, { paddingVertical: spacing.md, paddingRight: spacing.md, paddingLeft: spacing.md }]}>
+          <View style={styles.rowLeft}>
+            <Ionicons name="cash" size={24} color={colors.income} style={styles.rowIcon} />
+            <View style={styles.rowText}>
+              <View style={styles.titleRow}>
+                <Text style={[styles.rowTitle, { color: colors.text, fontSize: fontSize.md, fontWeight: fontWeight.bold }]} numberOfLines={1}>
+                  {income.source}
+                </Text>
+                {income.isRecurring && (
+                  <View style={[styles.badge, { backgroundColor: colors.primary + '18', borderRadius: borderRadius.full, paddingHorizontal: spacing.sm, paddingVertical: 2 }]}>
+                    <Text style={[styles.badgeText, { color: colors.primary, fontSize: fontSize.xs, fontWeight: fontWeight.semibold }]}>
+                      Recurring
+                    </Text>
+                  </View>
+                )}
+              </View>
+              {!!income.description && (
+                <Text style={[styles.rowSubtitle, { color: colors.textSecondary, fontSize: fontSize.sm }]} numberOfLines={1}>
+                  {income.description}
+                </Text>
+              )}
+            </View>
+          </View>
+          <View style={styles.rowRight}>
+            <Text style={[styles.rowAmount, { color: colors.income, fontSize: fontSize.md, fontWeight: fontWeight.semibold }]}>
+              +{formatCurrency(income.amount)}
+            </Text>
+            <Pressable
+              onPress={onDelete}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              style={({ pressed }) => [styles.deleteButton, { backgroundColor: pressed ? colors.border : 'transparent', borderRadius: borderRadius.sm }]}
+            >
+              <Ionicons name="trash-outline" size={16} color={colors.danger} />
+            </Pressable>
+          </View>
         </View>
       </Card>
     </Animated.View>
   );
 }
 
-export default function ExpensesScreen() {
+export default function TransactionsScreen() {
   const { isDark, colors, spacing, borderRadius, fontSize, fontWeight } = useTheme();
   const router = useRouter();
 
   const user = useAuthStore((s) => s.user);
-  const { expenses, loading, subscribeToExpenses, deleteExpense } = useExpenseStore();
+  const { expenses, loading: expLoading, subscribeToExpenses, deleteExpense } = useExpenseStore();
+  const { incomes, loading: incLoading, subscribeToIncome, deleteIncome } = useIncomeStore();
 
   const [selectedMonth, setSelectedMonth] = useState(() => new Date());
 
   useEffect(() => {
     if (!user?.uid) return;
-    const unsubscribe = subscribeToExpenses(user.uid);
-    return unsubscribe;
+    const unsub1 = subscribeToExpenses(user.uid);
+    const unsub2 = subscribeToIncome(user.uid);
+    return () => { unsub1(); unsub2(); };
   }, [user?.uid]);
 
-  const { monthlyTotal, groups } = useMemo(() => {
-    const filtered = expenses.filter((e) => {
+  const loading = expLoading || incLoading;
+
+  const { monthlyExpenses, monthlyIncome, flatData } = useMemo(() => {
+    const year = selectedMonth.getFullYear();
+    const month = selectedMonth.getMonth();
+
+    // Build unified transaction list
+    const transactions: Transaction[] = [];
+
+    let expTotal = 0;
+    for (const e of expenses) {
       const d = e.date.toDate();
-      return (
-        d.getFullYear() === selectedMonth.getFullYear() &&
-        d.getMonth() === selectedMonth.getMonth()
-      );
-    });
-
-    let total = 0;
-    const groupMap = new Map<string, Expense[]>();
-
-    for (const expense of filtered) {
-      total += expense.amount;
-      const d = expense.date.toDate();
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-      const existing = groupMap.get(key);
-      if (existing) {
-        existing.push(expense);
-      } else {
-        groupMap.set(key, [expense]);
+      if (d.getFullYear() === year && d.getMonth() === month) {
+        expTotal += e.amount;
+        transactions.push({ type: 'expense', data: e, dateMs: d.getTime() });
       }
     }
 
-    const sortedKeys = [...groupMap.keys()].sort((a, b) => b.localeCompare(a));
-    const dateGroups: DateGroup[] = sortedKeys.map((key) => {
-      const items = groupMap.get(key)!;
-      return {
-        dateKey: key,
-        dateLabel: formatDate(items[0].date),
-        data: items,
-      };
-    });
+    let incTotal = 0;
+    for (const i of incomes) {
+      const d = i.date.toDate();
+      if (d.getFullYear() === year && d.getMonth() === month) {
+        incTotal += i.amount;
+        transactions.push({ type: 'income', data: i, dateMs: d.getTime() });
+      }
+    }
 
-    return { monthlyTotal: total, groups: dateGroups };
-  }, [expenses, selectedMonth]);
+    // Sort by date descending
+    transactions.sort((a, b) => b.dateMs - a.dateMs);
+
+    // Group by date
+    const groupMap = new Map<string, Transaction[]>();
+    for (const t of transactions) {
+      const d = new Date(t.dateMs);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const existing = groupMap.get(key);
+      if (existing) existing.push(t);
+      else groupMap.set(key, [t]);
+    }
+
+    const sortedKeys = [...groupMap.keys()].sort((a, b) => b.localeCompare(a));
+    const items: FlatItem[] = [];
+    let itemIndex = 0;
+    for (const key of sortedKeys) {
+      const group = groupMap.get(key)!;
+      const firstDate = group[0].type === 'expense' ? group[0].data.date : group[0].data.date;
+      items.push({ kind: 'header', dateLabel: formatDate(firstDate), key: `header-${key}` });
+      for (const t of group) {
+        const id = t.type === 'expense' ? t.data.id : t.data.id;
+        items.push({ kind: 'transaction', transaction: t, key: `${t.type}-${id}`, index: itemIndex++ });
+      }
+    }
+
+    return { monthlyExpenses: expTotal, monthlyIncome: incTotal, flatData: items };
+  }, [expenses, incomes, selectedMonth]);
 
   const handlePrevMonth = useCallback(() => {
     setSelectedMonth((prev) => {
@@ -182,36 +251,41 @@ export default function ExpensesScreen() {
     });
   }, []);
 
-  const handleDelete = useCallback(
-    (id: string) => {
-      if (!user?.uid) return;
-      Alert.alert('Delete Expense', 'Are you sure you want to delete this expense?', [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => deleteExpense(user.uid, id),
-        },
-      ]);
+  const confirmDelete = useCallback(
+    (label: string, onConfirm: () => void) => {
+      if (Platform.OS === 'web') {
+        if (window.confirm(`Are you sure you want to delete this ${label}?`)) {
+          onConfirm();
+        }
+      } else {
+        Alert.alert(`Delete ${label}`, `Are you sure you want to delete this ${label}?`, [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Delete', style: 'destructive', onPress: onConfirm },
+        ]);
+      }
     },
-    [user?.uid, deleteExpense],
+    [],
   );
 
-  const flatData = useMemo(() => {
-    const items: ({ type: 'header'; dateLabel: string; key: string } | { type: 'expense'; expense: Expense; key: string; index: number })[] = [];
-    let itemIndex = 0;
-    for (const group of groups) {
-      items.push({ type: 'header', dateLabel: group.dateLabel, key: `header-${group.dateKey}` });
-      for (const expense of group.data) {
-        items.push({ type: 'expense', expense, key: expense.id, index: itemIndex++ });
-      }
-    }
-    return items;
-  }, [groups]);
+  const handleDeleteExpense = useCallback(
+    (id: string) => {
+      if (!user?.uid) return;
+      confirmDelete('expense', () => deleteExpense(user.uid, id));
+    },
+    [user?.uid, deleteExpense, confirmDelete],
+  );
+
+  const handleDeleteIncome = useCallback(
+    (id: string) => {
+      if (!user?.uid) return;
+      confirmDelete('income', () => deleteIncome(user.uid, id));
+    },
+    [user?.uid, deleteIncome, confirmDelete],
+  );
 
   const renderItem = useCallback(
-    ({ item }: { item: (typeof flatData)[number] }) => {
-      if (item.type === 'header') {
+    ({ item }: { item: FlatItem }) => {
+      if (item.kind === 'header') {
         return (
           <Text style={[styles.sectionHeader, { color: colors.textTertiary, fontSize: fontSize.xs, fontWeight: fontWeight.semibold, marginHorizontal: spacing.md }]}>
             {item.dateLabel}
@@ -219,12 +293,28 @@ export default function ExpensesScreen() {
         );
       }
 
+      const { transaction } = item;
+      if (transaction.type === 'expense') {
+        return (
+          <AnimatedTransactionRow
+            transaction={transaction}
+            index={item.index}
+            onPress={() => router.push(`/expense/${transaction.data.id}`)}
+            onDelete={() => handleDeleteExpense(transaction.data.id)}
+            colors={colors}
+            spacing={spacing}
+            borderRadius={borderRadius}
+            fontSize={fontSize}
+            fontWeight={fontWeight}
+          />
+        );
+      }
+
       return (
-        <AnimatedExpenseRow
-          expense={item.expense}
+        <AnimatedTransactionRow
+          transaction={transaction}
           index={item.index}
-          onPress={() => router.push(`/expense/${item.expense.id}`)}
-          onDelete={() => handleDelete(item.expense.id)}
+          onDelete={() => handleDeleteIncome(transaction.data.id)}
           colors={colors}
           spacing={spacing}
           borderRadius={borderRadius}
@@ -233,7 +323,7 @@ export default function ExpensesScreen() {
         />
       );
     },
-    [colors, spacing, borderRadius, fontSize, fontWeight, router, handleDelete],
+    [colors, spacing, borderRadius, fontSize, fontWeight, router, handleDeleteExpense, handleDeleteIncome],
   );
 
   if (loading) {
@@ -244,23 +334,49 @@ export default function ExpensesScreen() {
     );
   }
 
+  const netCash = monthlyIncome - monthlyExpenses;
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Monthly total card with accent bar */}
-      <View style={[styles.totalCard, { backgroundColor: colors.surface, marginHorizontal: spacing.md, marginTop: spacing.md, borderRadius: borderRadius.lg, borderColor: colors.border, borderWidth: isDark ? 1 : 0 }]}>
-        {!isDark && <View style={styles.totalCardShadow} />}
-        <View style={[styles.totalAccentBar, { backgroundColor: colors.expense, borderTopLeftRadius: borderRadius.lg, borderBottomLeftRadius: borderRadius.lg }]} />
-        <View style={[styles.totalContent, { padding: spacing.lg }]}>
-          <Text style={[styles.totalLabel, { color: colors.textSecondary, fontSize: fontSize.sm, fontWeight: fontWeight.medium }]}>
-            Monthly Spending
-          </Text>
-          <Text style={[styles.totalAmount, { color: colors.expense, fontSize: fontSize.hero, fontWeight: fontWeight.heavy }]}>
-            {formatCurrency(monthlyTotal)}
-          </Text>
+      {/* Summary cards */}
+      <View style={[styles.summaryRow, { marginHorizontal: spacing.md, marginTop: spacing.md, gap: spacing.sm }]}>
+        {/* Income card — tappable to manage income */}
+        <Pressable
+          style={[styles.summaryCard, { backgroundColor: colors.surface, borderRadius: borderRadius.lg, borderColor: colors.border, borderWidth: isDark ? 1 : 0 }]}
+          onPress={() => router.push('/income')}
+        >
+          <View style={[styles.summaryAccent, { backgroundColor: colors.income, borderTopLeftRadius: borderRadius.lg, borderBottomLeftRadius: borderRadius.lg }]} />
+          <View style={[styles.summaryContent, { padding: spacing.md }]}>
+            <View style={styles.summaryLabelRow}>
+              <Text style={[styles.summaryLabel, { color: colors.textSecondary, fontSize: fontSize.xs }]}>Income</Text>
+              <Ionicons name="chevron-forward" size={14} color={colors.textTertiary} />
+            </View>
+            <Text style={[styles.summaryAmount, { color: colors.income, fontSize: fontSize.lg, fontWeight: fontWeight.bold }]}>
+              {formatCurrency(monthlyIncome)}
+            </Text>
+          </View>
+        </Pressable>
+        {/* Expenses card */}
+        <View style={[styles.summaryCard, { backgroundColor: colors.surface, borderRadius: borderRadius.lg, borderColor: colors.border, borderWidth: isDark ? 1 : 0 }]}>
+          <View style={[styles.summaryAccent, { backgroundColor: colors.expense, borderTopLeftRadius: borderRadius.lg, borderBottomLeftRadius: borderRadius.lg }]} />
+          <View style={[styles.summaryContent, { padding: spacing.md }]}>
+            <Text style={[styles.summaryLabel, { color: colors.textSecondary, fontSize: fontSize.xs }]}>Expenses</Text>
+            <Text style={[styles.summaryAmount, { color: colors.expense, fontSize: fontSize.lg, fontWeight: fontWeight.bold }]}>
+              {formatCurrency(monthlyExpenses)}
+            </Text>
+          </View>
         </View>
       </View>
 
-      {/* Month selector pills */}
+      {/* Net cash flow */}
+      <View style={[styles.netCashRow, { marginHorizontal: spacing.md, marginTop: spacing.sm }]}>
+        <Text style={[styles.netCashLabel, { color: colors.textSecondary, fontSize: fontSize.sm }]}>Net Cash Flow</Text>
+        <Text style={[styles.netCashAmount, { color: netCash >= 0 ? colors.income : colors.expense, fontSize: fontSize.md, fontWeight: fontWeight.bold }]}>
+          {netCash >= 0 ? '+' : ''}{formatCurrency(netCash)}
+        </Text>
+      </View>
+
+      {/* Month selector */}
       <View style={[styles.monthSelector, { paddingVertical: spacing.md }]}>
         <Pressable
           onPress={handlePrevMonth}
@@ -279,12 +395,12 @@ export default function ExpensesScreen() {
         </Pressable>
       </View>
 
-      {/* Expense list */}
+      {/* Transaction list */}
       {flatData.length === 0 ? (
         <EmptyState
-          icon="wallet-outline"
-          title="No expenses yet"
-          subtitle="Tap the + button to add your first expense for this month."
+          icon="swap-horizontal-outline"
+          title="No transactions yet"
+          subtitle="Tap the + button to add your first expense or income for this month."
         />
       ) : (
         <FlatList
@@ -295,20 +411,6 @@ export default function ExpensesScreen() {
           showsVerticalScrollIndicator={false}
         />
       )}
-
-      {/* FAB */}
-      <Pressable
-        style={({ pressed }) => [
-          styles.fab,
-          {
-            backgroundColor: colors.primary,
-            transform: [{ scale: pressed ? 0.92 : 1 }],
-          },
-        ]}
-        onPress={() => router.push('/expense/add')}
-      >
-        <Ionicons name="add" size={28} color="#fff" />
-      </Pressable>
     </View>
   );
 }
@@ -322,30 +424,40 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  totalCard: {
-    overflow: 'hidden',
+  summaryRow: {
     flexDirection: 'row',
   },
-  totalCardShadow: {
-    ...StyleSheet.absoluteFillObject,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
+  summaryCard: {
+    flex: 1,
+    flexDirection: 'row',
+    overflow: 'hidden',
   },
-  totalAccentBar: {
-    width: 5,
+  summaryAccent: {
+    width: 4,
   },
-  totalContent: {
+  summaryContent: {
     flex: 1,
   },
-  totalLabel: {
+  summaryLabelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  summaryLabel: {
     marginBottom: 4,
   },
-  totalAmount: {
-    letterSpacing: -0.5,
+  summaryAmount: {
+    letterSpacing: -0.3,
   },
+  netCashRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+  },
+  netCashLabel: {},
+  netCashAmount: {},
   monthSelector: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -371,7 +483,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
     marginBottom: 8,
   },
-  expenseRow: {
+  row: {
     overflow: 'hidden',
     flexDirection: 'row',
     padding: 0,
@@ -391,47 +503,32 @@ const styles = StyleSheet.create({
     flex: 1,
     marginRight: 12,
   },
-  categoryIcon: {
+  rowIcon: {
     marginRight: 12,
   },
   rowText: {
     flex: 1,
   },
-  description: {
-    marginBottom: 2,
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
-  categoryName: {
-    marginTop: 1,
+  rowTitle: {
+    flexShrink: 1,
   },
+  rowSubtitle: {
+    marginTop: 2,
+  },
+  badge: {},
+  badgeText: {},
   rowRight: {
     alignItems: 'flex-end',
     gap: 6,
   },
-  amount: {},
+  rowAmount: {},
   deleteButton: {
     paddingHorizontal: 6,
     paddingVertical: 4,
-  },
-  deleteIcon: {},
-  fab: {
-    position: 'absolute',
-    bottom: 28,
-    right: 24,
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 10,
-    elevation: 10,
-  },
-  fabText: {
-    color: '#fff',
-    fontSize: 30,
-    fontWeight: '600',
-    lineHeight: 32,
   },
 });

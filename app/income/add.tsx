@@ -29,7 +29,8 @@ export default function AddIncomeScreen() {
   const [amount, setAmount] = useState('');
   const [source, setSource] = useState('');
   const [description, setDescription] = useState('');
-  const [date] = useState(new Date());
+  const [date, setDate] = useState(new Date());
+  const [showDateInput, setShowDateInput] = useState(false);
   const [isRecurring, setIsRecurring] = useState(false);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<{ amount?: string; source?: string }>({});
@@ -109,11 +110,37 @@ export default function AddIncomeScreen() {
         {/* Date */}
         <View style={[styles.fieldSection, { marginBottom: spacing.md }]}>
           <Text style={[styles.fieldLabel, { color: colors.text, fontSize: fontSize.sm, fontWeight: fontWeight.semibold, marginBottom: spacing.sm }]}>Date</Text>
-          <Pressable style={[styles.dateDisplay, { backgroundColor: colors.surface, borderRadius: borderRadius.md, borderWidth: 1, borderColor: colors.border, paddingVertical: spacing.md, paddingHorizontal: spacing.md }]}>
-            <Ionicons name="calendar" size={20} color={colors.textSecondary} />
-            <Text style={[styles.dateText, { color: colors.text, fontSize: fontSize.md, fontWeight: fontWeight.medium }]}>{formatDate(date)}</Text>
-            <Text style={[styles.todayBadge, { color: colors.primary, fontSize: fontSize.xs, fontWeight: fontWeight.semibold }]}>Today</Text>
-          </Pressable>
+          {showDateInput ? (
+            <View style={[styles.dateInputRow, { backgroundColor: colors.surface, borderRadius: borderRadius.md, borderWidth: 1, borderColor: colors.primary, paddingVertical: spacing.sm, paddingHorizontal: spacing.md }]}>
+              <Ionicons name="calendar" size={20} color={colors.primary} />
+              <Input
+                value={`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`}
+                onChangeText={(val) => {
+                  const parsed = new Date(val + 'T12:00:00');
+                  if (!isNaN(parsed.getTime())) setDate(parsed);
+                }}
+                placeholder="YYYY-MM-DD"
+                style={{ flex: 1, borderWidth: 0, backgroundColor: 'transparent' }}
+              />
+              <Pressable onPress={() => setShowDateInput(false)}>
+                <Ionicons name="checkmark-circle" size={24} color={colors.primary} />
+              </Pressable>
+            </View>
+          ) : (
+            <Pressable
+              onPress={() => setShowDateInput(true)}
+              style={[styles.dateDisplay, { backgroundColor: colors.surface, borderRadius: borderRadius.md, borderWidth: 1, borderColor: colors.border, paddingVertical: spacing.md, paddingHorizontal: spacing.md }]}
+            >
+              <Ionicons name="calendar" size={20} color={colors.textSecondary} />
+              <Text style={[styles.dateText, { color: colors.text, fontSize: fontSize.md, fontWeight: fontWeight.medium }]}>{formatDate(date)}</Text>
+              {date.toDateString() === new Date().toDateString() && (
+                <Text style={[styles.todayBadge, { color: colors.primary, fontSize: fontSize.xs, fontWeight: fontWeight.semibold }]}>Today</Text>
+              )}
+              {date > new Date() && (
+                <Text style={[styles.todayBadge, { color: colors.subscription, fontSize: fontSize.xs, fontWeight: fontWeight.semibold }]}>Scheduled</Text>
+              )}
+            </Pressable>
+          )}
         </View>
 
         {/* Recurring toggle */}
@@ -161,7 +188,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
   },
-  dateEmoji: {},
+  dateInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
   dateText: {
     flex: 1,
   },

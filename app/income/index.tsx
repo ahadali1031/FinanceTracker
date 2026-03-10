@@ -8,6 +8,7 @@ import {
   Alert,
   ActivityIndicator,
   Animated,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@/constants/useTheme';
@@ -86,15 +87,13 @@ function AnimatedIncomeRow({
             <Text style={[styles.amount, { color: colors.income, fontSize: fontSize.md, fontWeight: fontWeight.semibold }]}>
               +{formatCurrency(item.amount)}
             </Text>
-            <View onStartShouldSetResponder={() => true}>
-              <Pressable
-                onPress={() => onDelete()}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                style={({ pressed }) => [styles.deleteButton, { backgroundColor: pressed ? colors.border : 'transparent', borderRadius: borderRadius.sm }]}
-              >
-                <Ionicons name="trash-outline" size={16} color={colors.danger} />
-              </Pressable>
-            </View>
+            <Pressable
+              onPress={onDelete}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              style={({ pressed }) => [styles.deleteButton, { backgroundColor: pressed ? colors.border : 'transparent', borderRadius: borderRadius.sm }]}
+            >
+              <Ionicons name="trash-outline" size={16} color={colors.danger} />
+            </Pressable>
           </View>
         </View>
       </Card>
@@ -153,14 +152,20 @@ export default function IncomeScreen() {
   const handleDelete = useCallback(
     (id: string) => {
       if (!user?.uid) return;
-      Alert.alert('Delete Income', 'Are you sure you want to delete this income entry?', [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => deleteIncome(user.uid, id),
-        },
-      ]);
+      if (Platform.OS === 'web') {
+        if (window.confirm('Are you sure you want to delete this income entry?')) {
+          deleteIncome(user.uid, id);
+        }
+      } else {
+        Alert.alert('Delete Income', 'Are you sure you want to delete this income entry?', [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: () => deleteIncome(user.uid, id),
+          },
+        ]);
+      }
     },
     [user?.uid, deleteIncome],
   );

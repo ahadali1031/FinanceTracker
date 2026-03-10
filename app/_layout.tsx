@@ -90,6 +90,7 @@ function RootLayoutNav() {
         <Stack.Screen name="expense/add" options={{ presentation: 'modal', title: 'Add Expense' }} />
         <Stack.Screen name="expense/[id]" options={{ presentation: 'card', title: 'Expense Details' }} />
         <Stack.Screen name="subscription/add" options={{ presentation: 'modal', title: 'Add Subscription' }} />
+        <Stack.Screen name="income/index" options={{ presentation: 'card', title: 'Income' }} />
         <Stack.Screen name="income/add" options={{ presentation: 'modal', title: 'Add Income' }} />
         <Stack.Screen name="investment/[accountId]" options={{ presentation: 'card', title: 'Investment Account' }} />
         <Stack.Screen name="investment/add-transaction" options={{ presentation: 'modal', title: 'Add Transaction' }} />

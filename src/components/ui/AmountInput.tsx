@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useMemo } from 'react';
 import {
   StyleSheet,
   View,
@@ -13,12 +13,25 @@ interface AmountInputProps {
   label?: string;
 }
 
+function formatWithCommas(numStr: string): string {
+  if (!numStr) return '';
+  const parts = numStr.split('.');
+  const intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  if (parts.length === 2) {
+    return `${intPart}.${parts[1]}`;
+  }
+  return intPart;
+}
+
 export function AmountInput({ value, onChangeText, label }: AmountInputProps) {
-  const { isDark, colors, fontSize, fontWeight, spacing, borderRadius } = useTheme();
+  const { colors, fontSize, fontWeight, spacing } = useTheme();
   const [isFocused, setIsFocused] = useState(false);
+
+  const displayValue = useMemo(() => formatWithCommas(value), [value]);
 
   const handleChangeText = useCallback(
     (text: string) => {
+      // Strip commas and non-numeric chars (except . )
       const cleaned = text.replace(/[^0-9.]/g, '');
       const parts = cleaned.split('.');
       if (parts.length > 2) return;
@@ -86,7 +99,7 @@ export function AmountInput({ value, onChangeText, label }: AmountInputProps) {
               fontWeight: fontWeight.bold,
             },
           ]}
-          value={value}
+          value={displayValue}
           onChangeText={handleChangeText}
           onFocus={() => setIsFocused(true)}
           onBlur={handleBlur}

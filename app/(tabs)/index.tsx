@@ -1,15 +1,17 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useMemo } from 'react';
 import {
   StyleSheet,
   View,
   Text,
   ScrollView,
   Animated,
-  TouchableOpacity,
 } from 'react-native';
-import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/constants/useTheme';
+import { useAuthStore } from '@/src/stores/authStore';
+import { useExpenseStore } from '@/src/stores/expenseStore';
+import { useIncomeStore } from '@/src/stores/incomeStore';
+import { useSubscriptionStore } from '@/src/stores/subscriptionStore';
+import { useSavingsStore } from '@/src/stores/savingsStore';
 import { formatCurrency } from '@/src/utils/currency';
 
 function FadeInView({
@@ -117,21 +119,65 @@ function SummaryCard({
   );
 }
 
-interface QuickAction {
-  label: string;
-  route: string;
-  icon: string;
-}
-
-const quickActions: QuickAction[] = [
-  { label: 'Add Expense', route: '/expense/add', icon: 'wallet-outline' },
-  { label: 'Add Income', route: '/income/add', icon: 'cash-outline' },
-  { label: 'Add Savings', route: '/savings/', icon: 'business-outline' },
-];
-
 export default function DashboardScreen() {
   const { colors, spacing, borderRadius, fontSize, fontWeight } = useTheme();
-  const router = useRouter();
+
+  const user = useAuthStore((s) => s.user);
+  const { expenses, subscribeToExpenses } = useExpenseStore();
+  const { incomes, subscribeToIncome } = useIncomeStore();
+  const { subscriptions, subscribeToSubscriptions, getMonthlyTotal } = useSubscriptionStore();
+  const { subscribeToAccounts: subscribeToSavings, getTotalSavings } = useSavingsStore();
+
+  // Subscribe to all data
+  useEffect(() => {
+    if (!user?.uid) return;
+    const unsubs = [
+      subscribeToExpenses(user.uid),
+      subscribeToIncome(user.uid),
+      subscribeToSubscriptions(user.uid),
+      subscribeToSavings(user.uid),
+    ];
+    return () => unsubs.forEach((u) => u());
+  }, [user?.uid]);
+
+  // Compute current month totals and net worth
+  const { monthlyExpenses, monthlyIncome, netWorth } = useMemo(() => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+    const year = now.getFullYear();
+    const month = now.getMonth();
+
+    let expMonthly = 0;
+    let expTotal = 0;
+    for (const e of expenses) {
+      const d = e.date.toDate();
+      if (d <= today) {
+        expTotal += e.amount;
+        if (d.getFullYear() === year && d.getMonth() === month) {
+          expMonthly += e.amount;
+        }
+      }
+    }
+
+    let incMonthly = 0;
+    let incTotal = 0;
+    for (const i of incomes) {
+      const d = i.date.toDate();
+      if (d <= today) {
+        incTotal += i.amount;
+        if (d.getFullYear() === year && d.getMonth() === month) {
+          incMonthly += i.amount;
+        }
+      }
+    }
+
+    const savings = getTotalSavings();
+    const nw = savings + incTotal - expTotal;
+
+    return { monthlyExpenses: expMonthly, monthlyIncome: incMonthly, netWorth: nw };
+  }, [expenses, incomes, getTotalSavings]);
+
+  const monthlySubscriptions = useMemo(() => getMonthlyTotal(), [subscriptions]);
 
   return (
     <ScrollView
@@ -169,15 +215,7 @@ export default function DashboardScreen() {
               },
             ]}
           >
-            {formatCurrency(0)}
-          </Text>
-          <Text
-            style={[
-              styles.netWorthHint,
-              { color: colors.textTertiary, fontSize: fontSize.xs },
-            ]}
-          >
-            Add accounts to get started
+            {formatCurrency(netWorth)}
           </Text>
         </View>
       </FadeInView>
@@ -186,7 +224,7 @@ export default function DashboardScreen() {
       <View style={[styles.gridRow, { gap: spacing.sm }]}>
         <SummaryCard
           label="Monthly Expenses"
-          amount={0}
+          amount={monthlyExpenses}
           accentColor={colors.expense}
           delay={200}
           colors={colors}
@@ -196,7 +234,7 @@ export default function DashboardScreen() {
         />
         <SummaryCard
           label="Monthly Income"
-          amount={0}
+          amount={monthlyIncome}
           accentColor={colors.income}
           delay={250}
           colors={colors}
@@ -218,7 +256,7 @@ export default function DashboardScreen() {
         />
         <SummaryCard
           label="Savings"
-          amount={0}
+          amount={getTotalSavings()}
           accentColor={colors.savings}
           delay={350}
           colors={colors}
@@ -267,70 +305,13 @@ export default function DashboardScreen() {
                 },
               ]}
             >
-              {formatCurrency(0)}
+              {formatCurrency(monthlySubscriptions)}
             </Text>
           </View>
         </View>
       </FadeInView>
 
-      {/* Quick Actions */}
-      <FadeInView delay={500}>
-        <Text
-          style={[
-            styles.sectionTitle,
-            {
-              color: colors.text,
-              fontSize: fontSize.md,
-              fontWeight: fontWeight.semibold,
-            },
-          ]}
-        >
-          Quick Actions
-        </Text>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={[styles.chipsContainer, { gap: spacing.sm }]}
-        >
-          {quickActions.map((action) => (
-            <TouchableOpacity
-              key={action.label}
-              activeOpacity={0.7}
-              onPress={() => router.push(action.route as any)}
-            >
-              <View
-                style={[
-                  styles.chip,
-                  {
-                    backgroundColor: colors.surface,
-                    borderRadius: borderRadius.full,
-                    borderWidth: 1,
-                    borderColor: colors.border,
-                    paddingHorizontal: spacing.md,
-                    paddingVertical: spacing.sm,
-                  },
-                ]}
-              >
-                <Ionicons name={action.icon as any} size={18} color={colors.primary} style={styles.chipEmoji} />
-                <Text
-                  style={[
-                    styles.chipText,
-                    {
-                      color: colors.text,
-                      fontSize: fontSize.sm,
-                      fontWeight: fontWeight.medium,
-                    },
-                  ]}
-                >
-                  {action.label}
-                </Text>
-              </View>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </FadeInView>
-
-      <View style={{ height: 40 }} />
+      <View style={{ height: 100 }} />
     </ScrollView>
   );
 }
@@ -356,9 +337,6 @@ const styles = StyleSheet.create({
   netWorthValue: {
     fontSize: 36,
     letterSpacing: 0.5,
-  },
-  netWorthHint: {
-    marginTop: 10,
   },
   gridRow: {
     flexDirection: 'row',
@@ -390,22 +368,5 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 24,
     overflow: 'hidden',
-  },
-  sectionTitle: {
-    marginBottom: 12,
-  },
-  chipsContainer: {
-    flexDirection: 'row',
-    paddingVertical: 4,
-  },
-  chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  chipEmoji: {
-    marginRight: 8,
-  },
-  chipText: {
-    letterSpacing: 0.2,
   },
 });
