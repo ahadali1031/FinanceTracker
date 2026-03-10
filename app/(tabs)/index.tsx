@@ -917,6 +917,28 @@ export default function DashboardScreen() {
         </FadeInView>
       )}
 
+      {/* Ask AI button */}
+      <FadeInView delay={475}>
+        <Pressable
+          onPress={() => router.push('/chat/' as any)}
+          style={({ pressed }) => [
+            styles.askAiButton,
+            {
+              backgroundColor: pressed ? colors.primary : colors.primary + 'E6',
+              borderRadius: borderRadius.lg,
+              padding: spacing.md,
+              marginBottom: spacing.md,
+            },
+          ]}
+        >
+          <Ionicons name="chatbubbles" size={20} color="#fff" />
+          <Text style={{ color: '#fff', fontSize: fontSize.md, fontWeight: fontWeight.semibold, marginLeft: spacing.sm }}>
+            Ask AI about your finances
+          </Text>
+          <Ionicons name="chevron-forward" size={18} color="#fff" style={{ marginLeft: 'auto' }} />
+        </Pressable>
+      </FadeInView>
+
       <View style={{ height: 100 }} />
     </ScrollView>
   );
@@ -1026,4 +1048,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   timeRangeButton: {},
+  askAiButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
 });

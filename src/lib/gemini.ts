@@ -34,6 +34,11 @@ function checkRateLimit(): boolean {
 let cachedInsights: string[] | null = null;
 let insightsCacheKey = "";
 
+export interface ChatMessage {
+  role: "user" | "assistant";
+  text: string;
+}
+
 // --- Types ---
 
 export interface FinancialSummary {
@@ -211,5 +216,41 @@ Respond with ONLY a JSON array of strings, no markdown:
   } catch (error) {
     console.error("Gemini insights error:", error);
     return null;
+  }
+}
+
+/**
+ * Answer a financial question using the user's data as context.
+ * Supports multi-turn conversation via history parameter.
+ */
+export async function askFinancialQuestion(
+  question: string,
+  dataContext: string,
+  history: ChatMessage[]
+): Promise<string | null> {
+  if (!question.trim()) return null;
+  if (!checkRateLimit()) {
+    return "I'm being rate-limited right now. Please wait a moment and try again.";
+  }
+
+  const historyText = history
+    .slice(-6) // keep last 3 exchanges for context
+    .map((m) => `${m.role === "user" ? "User" : "Assistant"}: ${m.text}`)
+    .join("\n");
+
+  const prompt = `You are a helpful personal finance assistant. Answer the user's question using their financial data below. Be concise (2-4 sentences max). Use specific numbers from the data. If the data doesn't contain enough info to answer, say so.
+
+${dataContext}
+
+${historyText ? `Conversation so far:\n${historyText}\n` : ""}User: ${question}
+
+Answer naturally in plain text (no markdown, no bullet points unless listing items).`;
+
+  try {
+    const result = await getModel().generateContent(prompt);
+    return result.response.text().trim();
+  } catch (error) {
+    console.error("Gemini chat error:", error);
+    return "Sorry, I couldn't process that question. Please try again.";
   }
 }
