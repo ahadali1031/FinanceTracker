@@ -8,6 +8,7 @@ import {
   Alert,
   Platform,
   Animated,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -572,7 +573,10 @@ export default function BudgetScreen() {
   );
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <KeyboardAvoidingView
+      style={[styles.container, { backgroundColor: colors.background }]}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
       <FlatList
         data={targets}
         keyExtractor={(item) => item.category}
@@ -582,7 +586,7 @@ export default function BudgetScreen() {
         contentContainerStyle={[styles.content, { padding: spacing.md }]}
         showsVerticalScrollIndicator={false}
       />
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 

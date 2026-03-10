@@ -51,12 +51,12 @@ export function Button({
   };
 
   const getBackgroundColor = (): string => {
-    if (disabled) return isDark ? '#2D2D44' : '#D1D5DB';
+    if (disabled) return colors.border;
     switch (variant) {
       case 'primary':
         return colors.primary;
       case 'secondary':
-        return isDark ? colors.surfaceElevated : '#F3F4F6';
+        return colors.surfaceElevated;
       case 'danger':
         return colors.danger;
       case 'ghost':
@@ -65,7 +65,7 @@ export function Button({
   };
 
   const getTextColor = (): string => {
-    if (disabled) return isDark ? '#6B7280' : '#9CA3AF';
+    if (disabled) return colors.textTertiary;
     switch (variant) {
       case 'primary':
         return '#FFFFFF';

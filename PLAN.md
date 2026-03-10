@@ -132,8 +132,13 @@
 - [x] Dashboard skeleton while stores load
 - [x] Expenses tab skeleton replacing ActivityIndicator
 - [x] Investments tab skeleton replacing ActivityIndicator
-- [ ] Cross-platform testing (iOS, Android, web)
-- [ ] Dark mode / theming refinement
+- [x] Dark mode / light mode support (useColorScheme detects system preference, ThemeProvider adaptive)
+- [x] Login screen themed (replaced hardcoded dark colors with theme-aware values)
+- [x] Button/not-found hardcoded colors replaced with theme values
+- [x] Login screen SafeAreaView for notched devices
+- [x] Settings tab bottom padding for floating tab bar
+- [x] Budget screen KeyboardAvoidingView for keyboard handling
+- [x] Removed dead code (unused Dimensions imports)
 
 ---
 

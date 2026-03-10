@@ -6,13 +6,10 @@ import {
   Pressable,
   Animated,
   Modal,
-  Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@/constants/useTheme';
-
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 interface ActionItem {
   label: string;

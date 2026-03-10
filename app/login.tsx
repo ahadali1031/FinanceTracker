@@ -6,21 +6,20 @@ import {
   StyleSheet,
   Alert,
   Animated,
-  Dimensions,
   ActivityIndicator,
   Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { signInAnonymously, GoogleAuthProvider, signInWithCredential, signInWithPopup } from 'firebase/auth';
 import { auth } from '@/src/lib/firebase';
 import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
+import { useTheme } from '@/constants/useTheme';
 
 WebBrowser.maybeCompleteAuthSession();
 
 const GOOGLE_WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID!;
-
-const { width } = Dimensions.get('window');
 
 function AnimatedPressable({
   onPress,
@@ -67,6 +66,7 @@ function AnimatedPressable({
 }
 
 export default function LoginScreen() {
+  const { colors } = useTheme();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
   const iconScale = useRef(new Animated.Value(0.5)).current;
@@ -169,8 +169,44 @@ export default function LoginScreen() {
     }
   };
 
+  const dynamicStyles = StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+      alignItems: 'center',
+      paddingHorizontal: 32,
+    },
+    title: {
+      fontSize: 36,
+      fontWeight: '800',
+      color: colors.text,
+      letterSpacing: 0.5,
+      marginBottom: 10,
+    },
+    subtitle: {
+      fontSize: 16,
+      color: colors.textTertiary,
+      fontWeight: '400',
+      letterSpacing: 0.2,
+    },
+    guestButton: {
+      backgroundColor: 'transparent',
+      paddingVertical: 16,
+      borderRadius: 14,
+      alignItems: 'center',
+      borderWidth: 1.5,
+      borderColor: colors.border,
+    },
+    guestButtonText: {
+      color: colors.textSecondary,
+      fontSize: 16,
+      fontWeight: '600',
+      letterSpacing: 0.3,
+    },
+  });
+
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={dynamicStyles.container}>
       <View style={styles.topSpacer} />
 
       {/* Decorative icon */}
@@ -183,7 +219,7 @@ export default function LoginScreen() {
           },
         ]}
       >
-        <Ionicons name="analytics" size={80} color="#10B981" />
+        <Ionicons name="analytics" size={80} color={colors.income} />
       </Animated.View>
 
       {/* Title and subtitle */}
@@ -196,8 +232,8 @@ export default function LoginScreen() {
           },
         ]}
       >
-        <Text style={styles.title}>Finance Tracker</Text>
-        <Text style={styles.subtitle}>Track your money, grow your wealth</Text>
+        <Text style={dynamicStyles.title}>Finance Tracker</Text>
+        <Text style={dynamicStyles.subtitle}>Track your money, grow your wealth</Text>
       </Animated.View>
 
       <View style={styles.flexSpacer} />
@@ -223,23 +259,17 @@ export default function LoginScreen() {
           )}
         </AnimatedPressable>
 
-        <AnimatedPressable onPress={handleAnonymousSignIn} style={styles.guestButton} disabled={signingIn}>
-          <Text style={styles.guestButtonText}>Continue as Guest</Text>
+        <AnimatedPressable onPress={handleAnonymousSignIn} style={dynamicStyles.guestButton} disabled={signingIn}>
+          <Text style={dynamicStyles.guestButtonText}>Continue as Guest</Text>
         </AnimatedPressable>
       </Animated.View>
 
       <View style={styles.bottomSpacer} />
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0A1F15',
-    alignItems: 'center',
-    paddingHorizontal: 32,
-  },
   topSpacer: {
     flex: 1.2,
   },
@@ -248,19 +278,6 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-  },
-  title: {
-    fontSize: 36,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    letterSpacing: 0.5,
-    marginBottom: 10,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.55)',
-    fontWeight: '400',
-    letterSpacing: 0.2,
   },
   flexSpacer: {
     flex: 2,
@@ -290,20 +307,6 @@ const styles = StyleSheet.create({
     color: '#0A1F15',
     fontSize: 16,
     fontWeight: '700',
-    letterSpacing: 0.3,
-  },
-  guestButton: {
-    backgroundColor: 'transparent',
-    paddingVertical: 16,
-    borderRadius: 14,
-    alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.35)',
-  },
-  guestButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
     letterSpacing: 0.3,
   },
   bottomSpacer: {

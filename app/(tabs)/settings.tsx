@@ -89,7 +89,7 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     paddingHorizontal: 20,
-    paddingBottom: 48,
+    paddingBottom: 100,
     flexGrow: 1,
     justifyContent: 'center',
   },

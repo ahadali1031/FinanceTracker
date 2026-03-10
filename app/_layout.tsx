@@ -86,7 +86,7 @@ function RootLayoutNav() {
   }, [user, loading, segments]);
 
   return (
-    <ThemeProvider value={DarkTheme}>
+    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <SuccessToast message={toastMessage} visible={toastVisible} onHide={hideToast} />
       <Stack screenOptions={{ animation: 'slide_from_right' }}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
