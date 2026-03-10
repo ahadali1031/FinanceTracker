@@ -340,22 +340,16 @@ export default function TransactionsScreen() {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Summary cards */}
       <View style={[styles.summaryRow, { marginHorizontal: spacing.md, marginTop: spacing.md, gap: spacing.sm }]}>
-        {/* Income card — tappable to manage income */}
-        <Pressable
-          style={[styles.summaryCard, { backgroundColor: colors.surface, borderRadius: borderRadius.lg, borderColor: colors.border, borderWidth: isDark ? 1 : 0 }]}
-          onPress={() => router.push('/income')}
-        >
+        {/* Income card */}
+        <View style={[styles.summaryCard, { backgroundColor: colors.surface, borderRadius: borderRadius.lg, borderColor: colors.border, borderWidth: isDark ? 1 : 0 }]}>
           <View style={[styles.summaryAccent, { backgroundColor: colors.income, borderTopLeftRadius: borderRadius.lg, borderBottomLeftRadius: borderRadius.lg }]} />
           <View style={[styles.summaryContent, { padding: spacing.md }]}>
-            <View style={styles.summaryLabelRow}>
-              <Text style={[styles.summaryLabel, { color: colors.textSecondary, fontSize: fontSize.xs }]}>Income</Text>
-              <Ionicons name="chevron-forward" size={14} color={colors.textTertiary} />
-            </View>
+            <Text style={[styles.summaryLabel, { color: colors.textSecondary, fontSize: fontSize.xs }]}>Income</Text>
             <Text style={[styles.summaryAmount, { color: colors.income, fontSize: fontSize.lg, fontWeight: fontWeight.bold }]}>
               {formatCurrency(monthlyIncome)}
             </Text>
           </View>
-        </Pressable>
+        </View>
         {/* Expenses card */}
         <View style={[styles.summaryCard, { backgroundColor: colors.surface, borderRadius: borderRadius.lg, borderColor: colors.border, borderWidth: isDark ? 1 : 0 }]}>
           <View style={[styles.summaryAccent, { backgroundColor: colors.expense, borderTopLeftRadius: borderRadius.lg, borderBottomLeftRadius: borderRadius.lg }]} />
@@ -437,11 +431,6 @@ const styles = StyleSheet.create({
   },
   summaryContent: {
     flex: 1,
-  },
-  summaryLabelRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
   },
   summaryLabel: {
     marginBottom: 4,

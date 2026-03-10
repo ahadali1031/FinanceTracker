@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   StyleSheet,
   View,
@@ -8,8 +8,9 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Timestamp } from 'firebase/firestore';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/constants/useTheme';
@@ -22,23 +23,22 @@ import { formatDate } from '@/src/utils/date';
 function computeNextBillingDate(startDate: Date, frequency: 'monthly' | 'yearly'): Date {
   const now = new Date();
   const next = new Date(startDate);
-
   while (next <= now) {
-    if (frequency === 'monthly') {
-      next.setMonth(next.getMonth() + 1);
-    } else {
-      next.setFullYear(next.getFullYear() + 1);
-    }
+    if (frequency === 'monthly') next.setMonth(next.getMonth() + 1);
+    else next.setFullYear(next.getFullYear() + 1);
   }
   return next;
 }
 
-export default function AddSubscriptionScreen() {
+export default function SubscriptionDetailScreen() {
   const { colors, spacing, borderRadius, fontSize, fontWeight } = useTheme();
   const router = useRouter();
+  const { id } = useLocalSearchParams<{ id: string }>();
 
   const user = useAuthStore((s) => s.user);
-  const addSubscription = useSubscriptionStore((s) => s.addSubscription);
+  const { subscriptions, updateSubscription, deleteSubscription } = useSubscriptionStore();
+
+  const sub = useMemo(() => subscriptions.find((s) => s.id === id), [subscriptions, id]);
 
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
@@ -50,51 +50,71 @@ export default function AddSubscriptionScreen() {
   const [endDate, setEndDate] = useState<Date | null>(null);
   const [showEndDateInput, setShowEndDateInput] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [errors, setErrors] = useState<{ name?: string; amount?: string; category?: string }>({});
 
-  const validate = (): boolean => {
-    const newErrors: typeof errors = {};
-    if (!name.trim()) newErrors.name = 'Enter a subscription name';
-    const parsed = parseFloat(amount);
-    if (!parsed || parsed <= 0) newErrors.amount = 'Enter an amount greater than zero';
-    if (!category) newErrors.category = 'Select a category';
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
+  useEffect(() => {
+    if (!sub) return;
+    setName(sub.name);
+    setAmount(sub.amount.toFixed(2));
+    setFrequency(sub.frequency);
+    setCategory(sub.category);
+    setStartDate(sub.startDate.toDate());
+    if (sub.endDate) {
+      setHasEndDate(true);
+      setEndDate(sub.endDate.toDate());
+    }
+  }, [sub]);
 
   const handleSave = async () => {
-    if (!user?.uid) return;
-    if (!validate()) return;
+    if (!user?.uid || !id) return;
+    const parsed = parseFloat(amount);
+    if (!parsed || parsed <= 0 || !name.trim() || !category) return;
 
-    const parsedAmount = parseFloat(amount);
     const nextBilling = computeNextBillingDate(startDate, frequency);
 
     setSaving(true);
     try {
-      await addSubscription(user.uid, {
+      await updateSubscription(user.uid, id, {
         name: name.trim(),
-        amount: parsedAmount,
+        amount: parsed,
         frequency,
         category,
         startDate: Timestamp.fromDate(startDate),
         endDate: hasEndDate && endDate ? Timestamp.fromDate(endDate) : null,
-        isActive: true,
         nextBillingDate: Timestamp.fromDate(nextBilling),
       });
       router.back();
-    } catch (error) {
-      if (Platform.OS === 'web') {
-        window.alert('Failed to save subscription.');
-      } else {
-        Alert.alert('Error', 'Failed to save subscription.');
-      }
+    } catch {
+      if (Platform.OS === 'web') window.alert('Failed to update.');
+      else Alert.alert('Error', 'Failed to update.');
     } finally {
       setSaving(false);
     }
   };
 
+  const handleDelete = () => {
+    if (!user?.uid || !id) return;
+    if (Platform.OS === 'web') {
+      if (window.confirm(`Delete "${name}"?`)) {
+        deleteSubscription(user.uid, id).then(() => router.back());
+      }
+    } else {
+      Alert.alert('Delete Subscription', `Delete "${name}"?`, [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: () => deleteSubscription(user.uid, id).then(() => router.back()) },
+      ]);
+    }
+  };
+
   const dateToStr = (d: Date) =>
     `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+  if (!sub) {
+    return (
+      <View style={[styles.center, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
 
   return (
     <KeyboardAvoidingView
@@ -104,23 +124,12 @@ export default function AddSubscriptionScreen() {
       <ScrollView contentContainerStyle={[styles.content, { padding: spacing.md, paddingBottom: 40 }]} keyboardShouldPersistTaps="handled">
         {/* Amount */}
         <View style={[styles.amountSection, { marginBottom: spacing.lg }]}>
-          <AmountInput label="Amount" value={amount} onChangeText={(val) => { setAmount(val); if (errors.amount) setErrors((e) => ({ ...e, amount: undefined })); }} />
-          {errors.amount && (
-            <Text style={[styles.errorText, { color: colors.danger, fontSize: fontSize.sm, marginTop: spacing.xs }]}>{errors.amount}</Text>
-          )}
+          <AmountInput label="Amount" value={amount} onChangeText={setAmount} />
         </View>
 
         {/* Name */}
         <View style={[styles.fieldSection, { marginBottom: spacing.md }]}>
-          <Input
-            label="Subscription Name"
-            placeholder="e.g. Netflix, Spotify, iCloud"
-            value={name}
-            onChangeText={(val) => { setName(val); if (errors.name) setErrors((e) => ({ ...e, name: undefined })); }}
-          />
-          {errors.name && (
-            <Text style={[styles.errorText, { color: colors.danger, fontSize: fontSize.sm, marginTop: spacing.xs }]}>{errors.name}</Text>
-          )}
+          <Input label="Subscription Name" value={name} onChangeText={setName} />
         </View>
 
         {/* Frequency */}
@@ -143,13 +152,7 @@ export default function AddSubscriptionScreen() {
                   },
                 ]}
               >
-                <Text
-                  style={{
-                    color: frequency === f ? '#fff' : colors.text,
-                    fontSize: fontSize.md,
-                    fontWeight: frequency === f ? fontWeight.semibold : fontWeight.regular,
-                  }}
-                >
+                <Text style={{ color: frequency === f ? '#fff' : colors.text, fontSize: fontSize.md, fontWeight: frequency === f ? fontWeight.semibold : fontWeight.regular }}>
                   {f === 'monthly' ? 'Monthly' : 'Yearly'}
                 </Text>
               </Pressable>
@@ -160,14 +163,7 @@ export default function AddSubscriptionScreen() {
         {/* Category */}
         <View style={[styles.fieldSection, { marginBottom: spacing.md }]}>
           <Text style={[styles.fieldLabel, { color: colors.text, fontSize: fontSize.sm, fontWeight: fontWeight.semibold, marginBottom: spacing.sm }]}>Category</Text>
-          <CategoryPicker
-            categories={[...SUBSCRIPTION_CATEGORIES]}
-            selected={category}
-            onSelect={(val) => { setCategory(val); if (errors.category) setErrors((e) => ({ ...e, category: undefined })); }}
-          />
-          {errors.category && (
-            <Text style={[styles.errorText, { color: colors.danger, fontSize: fontSize.sm, marginTop: spacing.xs }]}>{errors.category}</Text>
-          )}
+          <CategoryPicker categories={[...SUBSCRIPTION_CATEGORIES]} selected={category} onSelect={setCategory} />
         </View>
 
         {/* Start Date */}
@@ -175,77 +171,37 @@ export default function AddSubscriptionScreen() {
           <Text style={[styles.fieldLabel, { color: colors.text, fontSize: fontSize.sm, fontWeight: fontWeight.semibold, marginBottom: spacing.sm }]}>Start Date</Text>
           {showDateInput ? (
             <View style={[styles.dateInputRow, { backgroundColor: colors.surface, borderRadius: borderRadius.md, borderWidth: 1, borderColor: colors.primary, paddingVertical: spacing.sm, paddingHorizontal: spacing.md }]}>
-              <Ionicons name="calendar" size={20} color={colors.primary} />
-              <Input
-                value={dateToStr(startDate)}
-                onChangeText={(val) => {
-                  const parsed = new Date(val + 'T12:00:00');
-                  if (!isNaN(parsed.getTime())) setStartDate(parsed);
-                }}
-                placeholder="YYYY-MM-DD"
-                style={{ flex: 1, borderWidth: 0, backgroundColor: 'transparent' }}
-              />
+              <Input value={dateToStr(startDate)} onChangeText={(val) => { const p = new Date(val + 'T12:00:00'); if (!isNaN(p.getTime())) setStartDate(p); }} placeholder="YYYY-MM-DD" style={{ flex: 1, borderWidth: 0, backgroundColor: 'transparent' }} />
               <Pressable onPress={() => setShowDateInput(false)}>
                 <Ionicons name="checkmark-circle" size={24} color={colors.primary} />
               </Pressable>
             </View>
           ) : (
-            <Pressable
-              onPress={() => setShowDateInput(true)}
-              style={[styles.dateDisplay, { backgroundColor: colors.surface, borderRadius: borderRadius.md, borderWidth: 1, borderColor: colors.border, paddingVertical: spacing.md, paddingHorizontal: spacing.md }]}
-            >
+            <Pressable onPress={() => setShowDateInput(true)} style={[styles.dateDisplay, { backgroundColor: colors.surface, borderRadius: borderRadius.md, borderWidth: 1, borderColor: colors.border, paddingVertical: spacing.md, paddingHorizontal: spacing.md }]}>
               <Ionicons name="calendar" size={20} color={colors.textSecondary} />
-              <Text style={[styles.dateText, { color: colors.text, fontSize: fontSize.md, fontWeight: fontWeight.medium }]}>{formatDate(startDate)}</Text>
+              <Text style={[styles.dateText, { color: colors.text, fontSize: fontSize.md }]}>{formatDate(startDate)}</Text>
             </Pressable>
           )}
         </View>
 
-        {/* End Date (optional) */}
+        {/* End Date */}
         <View style={[styles.fieldSection, { marginBottom: spacing.lg }]}>
-          <Pressable
-            onPress={() => {
-              setHasEndDate(!hasEndDate);
-              if (!hasEndDate && !endDate) {
-                const d = new Date(startDate);
-                d.setFullYear(d.getFullYear() + 1);
-                setEndDate(d);
-              }
-            }}
-            style={[styles.optionalRow, { paddingVertical: spacing.sm }]}
-          >
-            <Ionicons
-              name={hasEndDate ? 'checkbox' : 'square-outline'}
-              size={22}
-              color={hasEndDate ? colors.primary : colors.textTertiary}
-            />
-            <Text style={[{ color: colors.text, fontSize: fontSize.md, fontWeight: fontWeight.medium, marginLeft: spacing.sm }]}>
-              Set end date
-            </Text>
+          <Pressable onPress={() => { setHasEndDate(!hasEndDate); if (!hasEndDate && !endDate) { const d = new Date(startDate); d.setFullYear(d.getFullYear() + 1); setEndDate(d); } }} style={[styles.optionalRow, { paddingVertical: spacing.sm }]}>
+            <Ionicons name={hasEndDate ? 'checkbox' : 'square-outline'} size={22} color={hasEndDate ? colors.primary : colors.textTertiary} />
+            <Text style={{ color: colors.text, fontSize: fontSize.md, marginLeft: spacing.sm }}>Set end date</Text>
           </Pressable>
           {hasEndDate && endDate && (
             showEndDateInput ? (
               <View style={[styles.dateInputRow, { backgroundColor: colors.surface, borderRadius: borderRadius.md, borderWidth: 1, borderColor: colors.primary, paddingVertical: spacing.sm, paddingHorizontal: spacing.md, marginTop: spacing.sm }]}>
-                <Ionicons name="calendar" size={20} color={colors.primary} />
-                <Input
-                  value={dateToStr(endDate)}
-                  onChangeText={(val) => {
-                    const parsed = new Date(val + 'T12:00:00');
-                    if (!isNaN(parsed.getTime())) setEndDate(parsed);
-                  }}
-                  placeholder="YYYY-MM-DD"
-                  style={{ flex: 1, borderWidth: 0, backgroundColor: 'transparent' }}
-                />
+                <Input value={dateToStr(endDate)} onChangeText={(val) => { const p = new Date(val + 'T12:00:00'); if (!isNaN(p.getTime())) setEndDate(p); }} placeholder="YYYY-MM-DD" style={{ flex: 1, borderWidth: 0, backgroundColor: 'transparent' }} />
                 <Pressable onPress={() => setShowEndDateInput(false)}>
                   <Ionicons name="checkmark-circle" size={24} color={colors.primary} />
                 </Pressable>
               </View>
             ) : (
-              <Pressable
-                onPress={() => setShowEndDateInput(true)}
-                style={[styles.dateDisplay, { backgroundColor: colors.surface, borderRadius: borderRadius.md, borderWidth: 1, borderColor: colors.border, paddingVertical: spacing.md, paddingHorizontal: spacing.md, marginTop: spacing.sm }]}
-              >
+              <Pressable onPress={() => setShowEndDateInput(true)} style={[styles.dateDisplay, { backgroundColor: colors.surface, borderRadius: borderRadius.md, borderWidth: 1, borderColor: colors.border, paddingVertical: spacing.md, paddingHorizontal: spacing.md, marginTop: spacing.sm }]}>
                 <Ionicons name="calendar" size={20} color={colors.textSecondary} />
-                <Text style={[styles.dateText, { color: colors.text, fontSize: fontSize.md, fontWeight: fontWeight.medium }]}>{formatDate(endDate)}</Text>
+                <Text style={[styles.dateText, { color: colors.text, fontSize: fontSize.md }]}>{formatDate(endDate)}</Text>
               </Pressable>
             )
           )}
@@ -253,12 +209,13 @@ export default function AddSubscriptionScreen() {
 
         {/* Actions */}
         <View style={[styles.actions, { gap: spacing.md }]}>
-          <Button title="Save Subscription" onPress={handleSave} loading={saving} disabled={saving} />
-          <Pressable
-            onPress={() => router.back()}
-            style={({ pressed }) => [styles.ghostButton, { opacity: pressed ? 0.6 : 1, paddingVertical: spacing.md }]}
-          >
-            <Text style={[styles.ghostButtonText, { color: colors.textSecondary, fontSize: fontSize.md, fontWeight: fontWeight.semibold }]}>Cancel</Text>
+          <Button title="Save Changes" onPress={handleSave} loading={saving} disabled={saving} />
+          <Pressable onPress={handleDelete} style={({ pressed }) => [styles.deleteRow, { opacity: pressed ? 0.6 : 1, paddingVertical: spacing.md }]}>
+            <Ionicons name="trash-outline" size={18} color={colors.danger} />
+            <Text style={{ color: colors.danger, fontSize: fontSize.md, fontWeight: fontWeight.semibold, marginLeft: spacing.sm }}>Delete Subscription</Text>
+          </Pressable>
+          <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.ghostButton, { opacity: pressed ? 0.6 : 1, paddingVertical: spacing.sm }]}>
+            <Text style={{ color: colors.textSecondary, fontSize: fontSize.md, fontWeight: fontWeight.semibold }}>Cancel</Text>
           </Pressable>
         </View>
       </ScrollView>
@@ -268,11 +225,11 @@ export default function AddSubscriptionScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   content: {},
   amountSection: { alignItems: 'center' },
   fieldSection: {},
   fieldLabel: {},
-  errorText: {},
   freqRow: { flexDirection: 'row' },
   freqButton: { flex: 1, alignItems: 'center' },
   dateDisplay: { flexDirection: 'row', alignItems: 'center', gap: 10 },
@@ -280,6 +237,6 @@ const styles = StyleSheet.create({
   dateText: { flex: 1 },
   optionalRow: { flexDirection: 'row', alignItems: 'center' },
   actions: { marginTop: 8 },
+  deleteRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
   ghostButton: { alignItems: 'center', justifyContent: 'center' },
-  ghostButtonText: {},
 });

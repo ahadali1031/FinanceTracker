@@ -5,7 +5,10 @@ import {
   Text,
   ScrollView,
   Animated,
+  Pressable,
 } from 'react-native';
+import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/constants/useTheme';
 import { useAuthStore } from '@/src/stores/authStore';
 import { useExpenseStore } from '@/src/stores/expenseStore';
@@ -60,6 +63,7 @@ interface SummaryCardProps {
   fontSize: any;
   fontWeight: any;
   borderRadius: any;
+  onPress?: () => void;
 }
 
 function SummaryCard({
@@ -71,10 +75,13 @@ function SummaryCard({
   fontSize,
   fontWeight,
   borderRadius,
+  onPress,
 }: SummaryCardProps) {
+  const Wrapper = onPress ? Pressable : View;
   return (
     <FadeInView delay={delay} style={{ flex: 1 }}>
-      <View
+      <Wrapper
+        {...(onPress ? { onPress } : {})}
         style={[
           styles.summaryCard,
           {
@@ -93,14 +100,17 @@ function SummaryCard({
           ]}
         />
         <View style={styles.summaryCardContent}>
-          <Text
-            style={[
-              styles.summaryLabel,
-              { color: colors.textSecondary, fontSize: fontSize.xs },
-            ]}
-          >
-            {label}
-          </Text>
+          <View style={onPress ? styles.summaryLabelRow : undefined}>
+            <Text
+              style={[
+                styles.summaryLabel,
+                { color: colors.textSecondary, fontSize: fontSize.xs },
+              ]}
+            >
+              {label}
+            </Text>
+            {onPress && <Ionicons name="chevron-forward" size={14} color={colors.textTertiary} />}
+          </View>
           <Text
             style={[
               styles.summaryValue,
@@ -114,13 +124,14 @@ function SummaryCard({
             {formatCurrency(amount)}
           </Text>
         </View>
-      </View>
+      </Wrapper>
     </FadeInView>
   );
 }
 
 export default function DashboardScreen() {
   const { colors, spacing, borderRadius, fontSize, fontWeight } = useTheme();
+  const router = useRouter();
 
   const user = useAuthStore((s) => s.user);
   const { expenses, subscribeToExpenses } = useExpenseStore();
@@ -241,6 +252,7 @@ export default function DashboardScreen() {
           fontSize={fontSize}
           fontWeight={fontWeight}
           borderRadius={borderRadius}
+          onPress={() => router.push('/income')}
         />
       </View>
       <View style={[styles.gridRow, { gap: spacing.sm }]}>
@@ -266,9 +278,10 @@ export default function DashboardScreen() {
         />
       </View>
 
-      {/* Subscriptions Card */}
+      {/* Subscriptions Card — tappable to manage */}
       <FadeInView delay={400}>
-        <View
+        <Pressable
+          onPress={() => router.push('/(tabs)/subscriptions' as any)}
           style={[
             styles.subscriptionCard,
             {
@@ -287,14 +300,17 @@ export default function DashboardScreen() {
             ]}
           />
           <View style={styles.summaryCardContent}>
-            <Text
-              style={[
-                styles.summaryLabel,
-                { color: colors.textSecondary, fontSize: fontSize.xs },
-              ]}
-            >
-              Monthly Subscriptions
-            </Text>
+            <View style={styles.summaryLabelRow}>
+              <Text
+                style={[
+                  styles.summaryLabel,
+                  { color: colors.textSecondary, fontSize: fontSize.xs },
+                ]}
+              >
+                Monthly Subscriptions
+              </Text>
+              <Ionicons name="chevron-forward" size={14} color={colors.textTertiary} />
+            </View>
             <Text
               style={[
                 styles.summaryValue,
@@ -308,7 +324,7 @@ export default function DashboardScreen() {
               {formatCurrency(monthlySubscriptions)}
             </Text>
           </View>
-        </View>
+        </Pressable>
       </FadeInView>
 
       <View style={{ height: 100 }} />
@@ -355,6 +371,11 @@ const styles = StyleSheet.create({
   },
   summaryCardContent: {
     flex: 1,
+  },
+  summaryLabelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   summaryLabel: {
     marginBottom: 4,

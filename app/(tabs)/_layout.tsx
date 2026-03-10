@@ -136,6 +136,7 @@ export default function TabLayout() {
         <Tabs.Screen
           name="subscriptions"
           options={{
+            title: 'Subscriptions',
             href: null,
           }}
         />

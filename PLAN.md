@@ -36,13 +36,16 @@
 - [x] Future-dated transactions only affect net worth on their date
 - [ ] Monthly expense bar/pie chart by category (moved to Phase 5 with charts)
 
-## Phase 3: Subscriptions 🔲 ← NEXT
-- [ ] Subscription list — sorted by next billing date, active/inactive toggle
-- [ ] Summary card: monthly total, yearly total
-- [ ] Upcoming renewals section (next 7 days)
-- [ ] Add Subscription form — name, amount, frequency (monthly/yearly), category, start date, end date
-- [ ] Edit/delete subscription
-- [ ] Auto-calculate nextBillingDate from startDate + frequency
+## Phase 3: Subscriptions ✅
+- [x] Subscription list — sorted by next billing date, active/inactive toggle
+- [x] Summary cards: monthly total, yearly total
+- [x] Active count + upcoming renewals indicator (next 7 days)
+- [x] Add Subscription form — name, amount (comma formatting), frequency (monthly/yearly), category, start date, optional end date
+- [x] Edit subscription detail screen — update all fields
+- [x] Delete subscription (web: confirm, native: Alert)
+- [x] Toggle active/inactive with Switch
+- [x] Auto-calculate nextBillingDate from startDate + frequency
+- [x] Category-colored accent bars + icons
 
 ## Phase 4: Investments 🔲
 - [ ] Investment accounts list — name, type badge, institution, total value
@@ -78,6 +81,10 @@
 - [ ] **Investment Portfolio Charts**:
   - [ ] Donut chart for allocation (by holding, by account type)
   - [ ] Line chart for performance over time
+- [ ] **Sankey Chart (Net Worth flow)**:
+  - [ ] D3.js sankey via react-native-webview (Expo compatible)
+  - [ ] Visualize: income sources → expense categories / savings / investments
+  - [ ] Interactive nodes and links
 
 ## Phase 6: Polish 🔲
 - [ ] Dark mode / theming refinement
