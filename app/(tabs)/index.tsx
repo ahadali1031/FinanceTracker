@@ -18,6 +18,7 @@ import { useSubscriptionStore } from '@/src/stores/subscriptionStore';
 import { useSavingsStore } from '@/src/stores/savingsStore';
 import { useBudgetStore } from '@/src/stores/budgetStore';
 import { useInvestmentStore } from '@/src/stores/investmentStore';
+import { DashboardSkeleton } from '@/src/components/ui';
 import { formatCurrency } from '@/src/utils/currency';
 
 function FadeInView({
@@ -143,6 +144,9 @@ export default function DashboardScreen() {
   const { subscribeToAccounts: subscribeToSavings, getTotalSavings } = useSavingsStore();
   const { accounts: investmentAccounts, holdings: investmentHoldings, subscribeToAccounts: subscribeToInvestments } = useInvestmentStore();
   const { targets: budgetTargets, subscribeToTargets: subscribeToBudgets } = useBudgetStore();
+
+  const expLoading = useExpenseStore((s) => s.loading);
+  const incLoading = useIncomeStore((s) => s.loading);
 
   // Subscribe to all data
   useEffect(() => {
@@ -320,6 +324,14 @@ export default function DashboardScreen() {
   }, [expenses, incomes, monthCount, getTotalSavings, investmentAccounts, investmentHoldings]);
 
   const TIME_RANGES: ('3M' | '6M' | '1Y')[] = ['3M', '6M', '1Y'];
+
+  if (expLoading || incLoading) {
+    return (
+      <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
+        <DashboardSkeleton />
+      </ScrollView>
+    );
+  }
 
   return (
     <ScrollView

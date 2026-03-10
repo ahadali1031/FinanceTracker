@@ -116,25 +116,24 @@
   - [x] Inline edit + delete for existing targets
   - [x] Dashboard budget card with overall progress bar
   - [x] Settings → Manage Budgets navigation
-- [ ] **Business vs Personal Charts**:
-  - [ ] Side-by-side bar chart: personal vs business expenses per month (last 6 months)
-  - [ ] Donut chart: business expense breakdown by category
-  - [ ] Business income vs expense trend line (monthly)
-  - [ ] Toggle between personal-only and business-only views
-- [ ] **Investment Portfolio Charts**:
-  - [ ] Donut chart for allocation (by holding, by account type)
-  - [ ] Line chart for performance over time
-- [ ] **Sankey Chart (Net Worth flow)**:
-  - [ ] D3.js sankey via react-native-webview (Expo compatible)
+- [x] **Business vs Personal Charts**:
+  - [x] Grouped bar chart: personal vs business expenses per month (last 6 months)
+  - [x] Donut chart: business expense breakdown by category
+  - [x] Collapsible section on expenses tab
+- [x] **Investment Portfolio Charts**:
+  - [x] Donut chart for allocation by holding (ticker)
+  - [x] Donut chart for allocation by account type
+  - [x] Collapsible section on investments tab
+- [ ] **Sankey Chart (Net Worth flow)** — deferred (requires react-native-webview + D3.js):
   - [ ] Visualize: income sources → expense categories / savings / investments
-  - [ ] Interactive nodes and links
 
-## Phase 6: Polish 🔲
-- [ ] Dark mode / theming refinement
-- [ ] Error handling and edge cases
-- [ ] Loading states and skeletons
+## Phase 6: Polish ✅
+- [x] Loading skeletons (SkeletonLoader, CardSkeleton, ListItemSkeleton, DashboardSkeleton)
+- [x] Dashboard skeleton while stores load
+- [x] Expenses tab skeleton replacing ActivityIndicator
+- [x] Investments tab skeleton replacing ActivityIndicator
 - [ ] Cross-platform testing (iOS, Android, web)
-- [ ] Animations and transitions polish
+- [ ] Dark mode / theming refinement
 
 ---
 

@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@/constants/useTheme';
-import { Card, EmptyState } from '@/src/components/ui';
+import { Card, EmptyState, CardSkeleton, ListItemSkeleton } from '@/src/components/ui';
 import { DonutChart } from '@/src/components/charts';
 import { useExpenseStore } from '@/src/stores/expenseStore';
 import { useIncomeStore } from '@/src/stores/incomeStore';
@@ -73,7 +73,10 @@ const CATEGORY_ACCENT_COLORS: Record<string, string> = {
   education: '#98D8C8',
   travel: '#F7DC6F',
   other: '#BB8FCE',
+  transfer: '#6C5CE7',
 };
+
+const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
 type Transaction =
   | { type: 'expense'; data: Expense; dateMs: number }
@@ -218,6 +221,89 @@ function AnimatedTransactionRow({
   );
 }
 
+function GroupedBarChart({
+  data,
+  height = 160,
+  personalColor,
+  businessColor,
+}: {
+  data: { label: string; personal: number; business: number }[];
+  height?: number;
+  personalColor: string;
+  businessColor: string;
+}) {
+  const { colors, spacing, borderRadius, fontSize } = useTheme();
+  const animProgress = useRef(new Animated.Value(0)).current;
+  const maxValue = Math.max(...data.map((d) => Math.max(d.personal, d.business)), 1);
+
+  useEffect(() => {
+    Animated.timing(animProgress, {
+      toValue: 1,
+      duration: 600,
+      useNativeDriver: false,
+    }).start();
+  }, []);
+
+  return (
+    <View style={{ height, flexDirection: 'row', alignItems: 'flex-end', gap: spacing.xs }}>
+      {data.map((item, i) => {
+        const pRatio = item.personal / maxValue;
+        const bRatio = item.business / maxValue;
+        const pHeight = animProgress.interpolate({
+          inputRange: [0, 1],
+          outputRange: [0, pRatio * height * 0.85],
+        });
+        const bHeight = animProgress.interpolate({
+          inputRange: [0, 1],
+          outputRange: [0, bRatio * height * 0.85],
+        });
+
+        return (
+          <View key={`${item.label}-${i}`} style={{ flex: 1, alignItems: 'center' }}>
+            <View style={{ flex: 1, flexDirection: 'row', alignItems: 'flex-end', width: '90%', gap: 2 }}>
+              {/* Personal bar */}
+              <View style={{ flex: 1, justifyContent: 'flex-end', alignItems: 'stretch' }}>
+                <Animated.View
+                  style={{
+                    height: pHeight,
+                    backgroundColor: personalColor,
+                    borderTopLeftRadius: borderRadius.sm,
+                    borderTopRightRadius: borderRadius.sm,
+                    minHeight: item.personal > 0 ? 2 : 0,
+                  }}
+                />
+              </View>
+              {/* Business bar */}
+              <View style={{ flex: 1, justifyContent: 'flex-end', alignItems: 'stretch' }}>
+                <Animated.View
+                  style={{
+                    height: bHeight,
+                    backgroundColor: businessColor,
+                    borderTopLeftRadius: borderRadius.sm,
+                    borderTopRightRadius: borderRadius.sm,
+                    minHeight: item.business > 0 ? 2 : 0,
+                  }}
+                />
+              </View>
+            </View>
+            <Text
+              style={{
+                color: colors.textTertiary,
+                fontSize: fontSize.xs,
+                marginTop: 6,
+                textAlign: 'center',
+              }}
+              numberOfLines={1}
+            >
+              {item.label}
+            </Text>
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
 type TypeFilter = 'all' | 'expenses' | 'income';
 type BusinessFilter = 'all' | 'business' | 'personal';
 
@@ -248,6 +334,7 @@ export default function TransactionsScreen() {
   const [showBizDropdown, setShowBizDropdown] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showCharts, setShowCharts] = useState(true);
+  const [showBizCharts, setShowBizCharts] = useState(true);
 
   useEffect(() => {
     if (!user?.uid) return;
@@ -366,6 +453,63 @@ export default function TransactionsScreen() {
       .sort((a, b) => b.value - a.value);
   }, [expenses, selectedMonth, colors.primary]);
 
+  const bizVsPersonalData = useMemo(() => {
+    const now = new Date();
+    const months: { label: string; personal: number; business: number }[] = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const y = d.getFullYear();
+      const m = d.getMonth();
+      let personal = 0;
+      let business = 0;
+      for (const e of expenses) {
+        const ed = e.date.toDate();
+        if (ed.getFullYear() === y && ed.getMonth() === m) {
+          if (e.isBusiness) business += e.amount;
+          else personal += e.amount;
+        }
+      }
+      months.push({ label: MONTH_NAMES[m], personal, business });
+    }
+    return months;
+  }, [expenses]);
+
+  const bizDonutData = useMemo(() => {
+    const year = selectedMonth.getFullYear();
+    const month = selectedMonth.getMonth();
+    const catTotals = new Map<string, number>();
+    for (const e of expenses) {
+      if (!e.isBusiness) continue;
+      const d = e.date.toDate();
+      if (d.getFullYear() === year && d.getMonth() === month) {
+        catTotals.set(e.category, (catTotals.get(e.category) ?? 0) + e.amount);
+      }
+    }
+    return Array.from(catTotals.entries())
+      .map(([catId, value]) => ({
+        label: categoryMap.get(catId)?.name ?? catId,
+        value,
+        color: CATEGORY_ACCENT_COLORS[catId] ?? colors.primary,
+      }))
+      .sort((a, b) => b.value - a.value);
+  }, [expenses, selectedMonth, colors.primary]);
+
+  const hasBothBizAndPersonal = useMemo(() => {
+    const year = selectedMonth.getFullYear();
+    const month = selectedMonth.getMonth();
+    let hasBiz = false;
+    let hasPersonal = false;
+    for (const e of expenses) {
+      const d = e.date.toDate();
+      if (d.getFullYear() === year && d.getMonth() === month) {
+        if (e.isBusiness) hasBiz = true;
+        else hasPersonal = true;
+        if (hasBiz && hasPersonal) return true;
+      }
+    }
+    return false;
+  }, [expenses, selectedMonth]);
+
   const handlePrevMonth = useCallback(() => {
     setSelectedMonth((prev) => {
       const d = new Date(prev);
@@ -466,8 +610,13 @@ export default function TransactionsScreen() {
 
   if (loading) {
     return (
-      <View style={[styles.center, { backgroundColor: colors.background }]}>
-        <ActivityIndicator size="large" color={colors.primary} />
+      <View style={[styles.container, { backgroundColor: colors.background, padding: spacing.md }]}>
+        <CardSkeleton />
+        <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.sm }}>
+          <View style={{ flex: 1 }}><CardSkeleton /></View>
+          <View style={{ flex: 1 }}><CardSkeleton /></View>
+        </View>
+        {[1,2,3,4,5].map(i => <ListItemSkeleton key={i} />)}
       </View>
     );
   }
@@ -554,6 +703,88 @@ export default function TransactionsScreen() {
                 centerValue={formatCurrency(monthlyExpenses)}
               />
             </Card>
+          )}
+        </FadeInView>
+      )}
+
+      {/* Business vs Personal Charts — collapsible */}
+      {hasBothBizAndPersonal && (
+        <FadeInView delay={185}>
+          <Pressable
+            onPress={() => setShowBizCharts((prev) => !prev)}
+            style={[
+              styles.chartToggle,
+              {
+                marginHorizontal: spacing.md,
+                marginTop: spacing.sm,
+                paddingVertical: spacing.sm,
+                paddingHorizontal: spacing.xs,
+              },
+            ]}
+          >
+            <Ionicons
+              name={showBizCharts ? 'chevron-down' : 'chevron-forward'}
+              size={16}
+              color={colors.textTertiary}
+            />
+            <Text
+              style={{
+                color: colors.textSecondary,
+                fontSize: fontSize.sm,
+                fontWeight: fontWeight.semibold,
+                marginLeft: spacing.xs,
+              }}
+            >
+              Business vs Personal
+            </Text>
+          </Pressable>
+          {showBizCharts && (
+            <>
+              {/* Grouped bar chart — last 6 months */}
+              <Card
+                style={{
+                  marginHorizontal: spacing.md,
+                  marginBottom: spacing.sm,
+                  padding: spacing.md,
+                }}
+              >
+                <Text style={{ color: colors.textSecondary, fontSize: fontSize.xs, fontWeight: fontWeight.semibold, marginBottom: spacing.sm }}>
+                  Last 6 Months
+                </Text>
+                {/* Legend */}
+                <View style={{ flexDirection: 'row', gap: spacing.md, marginBottom: spacing.sm }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: colors.expense }} />
+                    <Text style={{ color: colors.textSecondary, fontSize: fontSize.xs }}>Personal</Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: colors.primary }} />
+                    <Text style={{ color: colors.textSecondary, fontSize: fontSize.xs }}>Business</Text>
+                  </View>
+                </View>
+                {/* Bars */}
+                <GroupedBarChart data={bizVsPersonalData} height={160} personalColor={colors.expense} businessColor={colors.primary} />
+              </Card>
+
+              {/* Business category donut */}
+              {bizDonutData.length > 0 && (
+                <Card
+                  style={{
+                    marginHorizontal: spacing.md,
+                    marginBottom: spacing.sm,
+                  }}
+                >
+                  <Text style={{ color: colors.textSecondary, fontSize: fontSize.xs, fontWeight: fontWeight.semibold, marginBottom: spacing.xs, paddingHorizontal: spacing.md, paddingTop: spacing.md }}>
+                    Business Expenses by Category
+                  </Text>
+                  <DonutChart
+                    data={bizDonutData}
+                    centerLabel="Business"
+                    centerValue={formatCurrency(bizDonutData.reduce((s, d) => s + d.value, 0))}
+                  />
+                </Card>
+              )}
+            </>
           )}
         </FadeInView>
       )}

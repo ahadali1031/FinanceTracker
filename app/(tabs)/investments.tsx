@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   StyleSheet,
   View,
@@ -13,7 +13,8 @@ import {
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/constants/useTheme';
-import { Card, EmptyState } from '@/src/components/ui';
+import { Card, EmptyState, CardSkeleton, ListItemSkeleton } from '@/src/components/ui';
+import { DonutChart } from '@/src/components/charts';
 import { useInvestmentStore } from '@/src/stores/investmentStore';
 import { useAuthStore } from '@/src/stores/authStore';
 import { formatCurrency } from '@/src/utils/currency';
@@ -213,6 +214,55 @@ export default function InvestmentsScreen() {
     return count;
   }, [accounts, holdings]);
 
+  const [showCharts, setShowCharts] = useState(true);
+
+  const allocationData = useMemo(() => {
+    const tickerValues = new Map<string, number>();
+    for (const account of accounts) {
+      const h = holdings.get(account.id) ?? [];
+      for (const holding of h) {
+        const q = quotes.get(holding.ticker.toUpperCase());
+        const value = q ? q.price * holding.shares : holding.costBasis;
+        tickerValues.set(holding.ticker.toUpperCase(), (tickerValues.get(holding.ticker.toUpperCase()) ?? 0) + value);
+      }
+    }
+    const PALETTE = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9'];
+    return Array.from(tickerValues.entries())
+      .map(([ticker, value], i) => ({
+        label: ticker,
+        value,
+        color: PALETTE[i % PALETTE.length],
+      }))
+      .sort((a, b) => b.value - a.value);
+  }, [accounts, holdings, quotes]);
+
+  const accountTypeData = useMemo(() => {
+    const typeValues = new Map<string, number>();
+    const TYPE_COLORS: Record<string, string> = {
+      brokerage: '#45B7D1',
+      '401k': '#FF6B6B',
+      roth_ira: '#4ECDC4',
+      traditional_ira: '#FFEAA7',
+      hsa: '#DDA0DD',
+    };
+    for (const account of accounts) {
+      const h = holdings.get(account.id) ?? [];
+      let acctValue = 0;
+      for (const holding of h) {
+        const q = quotes.get(holding.ticker.toUpperCase());
+        acctValue += q ? q.price * holding.shares : holding.costBasis;
+      }
+      const typeName = accountTypeMap.get(account.accountType) ?? account.accountType;
+      typeValues.set(typeName, (typeValues.get(typeName) ?? 0) + acctValue);
+    }
+    return Array.from(typeValues.entries())
+      .map(([type, value]) => {
+        const key = [...accountTypeMap.entries()].find(([, v]) => v === type)?.[0] ?? '';
+        return { label: type, value, color: TYPE_COLORS[key] ?? '#BB8FCE' };
+      })
+      .sort((a, b) => b.value - a.value);
+  }, [accounts, holdings, quotes]);
+
   const handleDelete = useCallback(
     (id: string, name: string) => {
       if (!user?.uid) return;
@@ -251,8 +301,12 @@ export default function InvestmentsScreen() {
 
   if (loading) {
     return (
-      <View style={[styles.center, { backgroundColor: colors.background }]}>
-        <ActivityIndicator size="large" color={colors.primary} />
+      <View style={[styles.container, { backgroundColor: colors.background, padding: spacing.md }]}>
+        <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.sm }}>
+          <View style={{ flex: 1 }}><CardSkeleton /></View>
+          <View style={{ flex: 1 }}><CardSkeleton /></View>
+        </View>
+        {[1,2,3].map(i => <ListItemSkeleton key={i} />)}
       </View>
     );
   }
@@ -306,6 +360,49 @@ export default function InvestmentsScreen() {
         </View>
       </FadeInView>
 
+      {/* Portfolio Charts */}
+      {totalHoldings > 0 && (
+        <FadeInView delay={225}>
+          <Pressable
+            onPress={() => setShowCharts(!showCharts)}
+            style={[styles.chartToggle, { marginHorizontal: spacing.md, paddingVertical: spacing.sm }]}
+          >
+            <Ionicons name={showCharts ? 'chevron-down' : 'chevron-forward'} size={16} color={colors.textTertiary} />
+            <Text style={{ color: colors.textSecondary, fontSize: fontSize.sm, fontWeight: fontWeight.semibold, marginLeft: spacing.xs }}>
+              Portfolio Allocation
+            </Text>
+          </Pressable>
+          {showCharts && (
+            <View style={{ marginHorizontal: spacing.md, marginBottom: spacing.md, gap: spacing.md }}>
+              {/* By Holding */}
+              <Card>
+                <Text style={{ color: colors.textSecondary, fontSize: fontSize.xs, fontWeight: fontWeight.semibold, marginBottom: spacing.sm }}>
+                  BY HOLDING
+                </Text>
+                <DonutChart
+                  data={allocationData}
+                  centerLabel="Total"
+                  centerValue={formatCurrency(totalPortfolioValue)}
+                />
+              </Card>
+              {/* By Account Type */}
+              {accountTypeData.length > 1 && (
+                <Card>
+                  <Text style={{ color: colors.textSecondary, fontSize: fontSize.xs, fontWeight: fontWeight.semibold, marginBottom: spacing.sm }}>
+                    BY ACCOUNT TYPE
+                  </Text>
+                  <DonutChart
+                    data={accountTypeData}
+                    centerLabel="Total"
+                    centerValue={formatCurrency(totalPortfolioValue)}
+                  />
+                </Card>
+              )}
+            </View>
+          )}
+        </FadeInView>
+      )}
+
       {/* Account list */}
       {accounts.length === 0 ? (
         <EmptyState
@@ -353,4 +450,5 @@ const styles = StyleSheet.create({
   amount: {},
   costLabel: {},
   deleteButton: { paddingHorizontal: 6, paddingVertical: 4, marginTop: 2 },
+  chartToggle: { flexDirection: 'row', alignItems: 'center' },
 });
