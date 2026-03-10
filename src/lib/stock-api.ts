@@ -53,6 +53,9 @@ export async function getStockQuote(ticker: string): Promise<StockQuote> {
 
   const url = `${AV_BASE_URL}?function=GLOBAL_QUOTE&symbol=${encodeURIComponent(ticker)}&apikey=${ALPHA_VANTAGE_API_KEY}`;
   const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`API error ${response.status} fetching quote for "${ticker}"`);
+  }
   const json = await response.json();
 
   const raw = json["Global Quote"];
@@ -95,6 +98,9 @@ export async function getStockHistory(
   const fn = PERIOD_FUNCTION_MAP[period];
   const url = `${AV_BASE_URL}?function=${fn}&symbol=${encodeURIComponent(ticker)}&apikey=${ALPHA_VANTAGE_API_KEY}`;
   const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`API error ${response.status} fetching history for "${ticker}"`);
+  }
   const json = await response.json();
 
   const seriesKey = PERIOD_KEY_MAP[period];
@@ -153,6 +159,9 @@ export async function getCryptoQuote(ticker: string): Promise<StockQuote> {
 
   const url = `${CG_BASE_URL}/simple/price?ids=${coinId}&vs_currencies=usd&include_24hr_change=true&include_24hr_vol=false`;
   const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`API error ${response.status} fetching crypto quote for "${ticker}"`);
+  }
   const json = await response.json();
 
   const data = json[coinId];
@@ -201,6 +210,9 @@ export async function searchSymbol(
 
   const url = `${AV_BASE_URL}?function=SYMBOL_SEARCH&keywords=${encodeURIComponent(keywords)}&apikey=${ALPHA_VANTAGE_API_KEY}`;
   const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`API error ${response.status} searching for "${keywords}"`);
+  }
   const json = await response.json();
 
   const matches = json["bestMatches"] ?? [];

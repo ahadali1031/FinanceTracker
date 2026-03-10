@@ -47,15 +47,18 @@ function FadeInView({ delay = 0, children, style }: { delay?: number; children: 
   );
 }
 
-const TRANSACTION_TYPE_CONFIG: Record<string, { icon: string; color: string; prefix: string }> = {
-  buy: { icon: 'arrow-down-circle', color: '#10B981', prefix: 'Bought' },
-  sell: { icon: 'arrow-up-circle', color: '#F43F5E', prefix: 'Sold' },
-  dividend: { icon: 'cash', color: '#F59E0B', prefix: 'Dividend' },
-  employer_match: { icon: 'gift', color: '#10B981', prefix: 'Match' },
-};
+function getTransactionTypeConfig(colors: any): Record<string, { icon: string; color: string; prefix: string }> {
+  return {
+    buy: { icon: 'arrow-down-circle', color: colors.income, prefix: 'Bought' },
+    sell: { icon: 'arrow-up-circle', color: colors.expense, prefix: 'Sold' },
+    dividend: { icon: 'cash', color: colors.warning, prefix: 'Dividend' },
+    employer_match: { icon: 'gift', color: colors.income, prefix: 'Match' },
+  };
+}
 
 export default function InvestmentAccountScreen() {
   const { isDark, colors, spacing, borderRadius, fontSize, fontWeight } = useTheme();
+  const TRANSACTION_TYPE_CONFIG = useMemo(() => getTransactionTypeConfig(colors), [colors]);
   const { accountId } = useLocalSearchParams<{ accountId: string }>();
   const router = useRouter();
 
@@ -574,7 +577,8 @@ function TransactionRow({
     }).start();
   }, []);
 
-  const config = TRANSACTION_TYPE_CONFIG[transaction.type] ?? TRANSACTION_TYPE_CONFIG.buy;
+  const txTypeConfig = getTransactionTypeConfig(colors);
+  const config = txTypeConfig[transaction.type] ?? txTypeConfig.buy;
   const dateStr = transaction.date?.toDate?.() ? formatDate(transaction.date) : '';
   const isDividend = transaction.type === 'dividend';
   const isMatch = transaction.type === 'employer_match';

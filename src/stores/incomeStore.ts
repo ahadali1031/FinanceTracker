@@ -16,6 +16,7 @@ import type { Income } from "@/src/types";
 interface IncomeState {
   incomes: Income[];
   loading: boolean;
+  error: string | null;
   subscribeToIncome: (uid: string) => () => void;
   addIncome: (
     uid: string,
@@ -32,20 +33,28 @@ interface IncomeState {
 export const useIncomeStore = create<IncomeState>((set) => ({
   incomes: [],
   loading: true,
+  error: null,
 
   subscribeToIncome: (uid: string) => {
-    set({ loading: true });
+    set({ loading: true, error: null });
     const q = query(
       collection(db, "users", uid, "incomes"),
       orderBy("date", "desc")
     );
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const incomes = snapshot.docs.map((d) => ({
-        id: d.id,
-        ...d.data(),
-      })) as Income[];
-      set({ incomes, loading: false });
-    });
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const incomes = snapshot.docs.map((d) => ({
+          id: d.id,
+          ...d.data(),
+        })) as Income[];
+        set({ incomes, loading: false, error: null });
+      },
+      (error) => {
+        console.error("Income subscription error:", error);
+        set({ loading: false, error: error.message });
+      }
+    );
     return unsubscribe;
   },
 

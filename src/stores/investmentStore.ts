@@ -8,6 +8,7 @@ import {
   query,
   where,
   orderBy,
+  getDoc,
   getDocs,
   onSnapshot,
 } from "firebase/firestore";
@@ -23,6 +24,7 @@ interface InvestmentState {
   holdings: Map<string, Holding[]>;
   transactions: Map<string, InvestmentTransaction[]>;
   loading: boolean;
+  error: string | null;
   subscribeToAccounts: (uid: string) => () => void;
   subscribeToTransactions: (uid: string, accountId: string) => () => void;
   addAccount: (
@@ -74,9 +76,10 @@ export const useInvestmentStore = create<InvestmentState>((set, get) => ({
   holdings: new Map(),
   transactions: new Map(),
   loading: true,
+  error: null,
 
   subscribeToAccounts: (uid: string) => {
-    set({ loading: true });
+    set({ loading: true, error: null });
     const q = query(
       collection(db, "users", uid, "investmentAccounts"),
       orderBy("name", "asc")
@@ -84,42 +87,55 @@ export const useInvestmentStore = create<InvestmentState>((set, get) => ({
 
     const holdingsUnsubscribes: (() => void)[] = [];
 
-    const accountsUnsubscribe = onSnapshot(q, (snapshot) => {
-      const accounts = snapshot.docs.map((d) => ({
-        id: d.id,
-        ...d.data(),
-      })) as InvestmentAccount[];
+    const accountsUnsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const accounts = snapshot.docs.map((d) => ({
+          id: d.id,
+          ...d.data(),
+        })) as InvestmentAccount[];
 
-      // Clean up previous holdings listeners
-      holdingsUnsubscribes.forEach((unsub) => unsub());
-      holdingsUnsubscribes.length = 0;
+        // Clean up previous holdings listeners
+        holdingsUnsubscribes.forEach((unsub) => unsub());
+        holdingsUnsubscribes.length = 0;
 
-      const newHoldings = new Map<string, Holding[]>();
+        const newHoldings = new Map<string, Holding[]>();
 
-      for (const account of accounts) {
-        const holdingsQuery = collection(
-          db,
-          "users",
-          uid,
-          "investmentAccounts",
-          account.id,
-          "holdings"
-        );
-        const unsub = onSnapshot(holdingsQuery, (holdingsSnap) => {
-          const h = holdingsSnap.docs.map((d) => ({
-            id: d.id,
-            ...d.data(),
-          })) as Holding[];
-          const current = new Map(get().holdings);
-          current.set(account.id, h);
-          set({ holdings: current });
-        });
-        holdingsUnsubscribes.push(unsub);
-        newHoldings.set(account.id, []);
+        for (const account of accounts) {
+          const holdingsQuery = collection(
+            db,
+            "users",
+            uid,
+            "investmentAccounts",
+            account.id,
+            "holdings"
+          );
+          const unsub = onSnapshot(
+            holdingsQuery,
+            (holdingsSnap) => {
+              const h = holdingsSnap.docs.map((d) => ({
+                id: d.id,
+                ...d.data(),
+              })) as Holding[];
+              const current = new Map(get().holdings);
+              current.set(account.id, h);
+              set({ holdings: current });
+            },
+            (error) => {
+              console.error(`Holdings error for ${account.id}:`, error);
+            }
+          );
+          holdingsUnsubscribes.push(unsub);
+          newHoldings.set(account.id, []);
+        }
+
+        set({ accounts, holdings: newHoldings, loading: false, error: null });
+      },
+      (error) => {
+        console.error("Investment subscription error:", error);
+        set({ loading: false, error: error.message });
       }
-
-      set({ accounts, holdings: newHoldings, loading: false });
-    });
+    );
 
     return () => {
       accountsUnsubscribe();
@@ -140,15 +156,21 @@ export const useInvestmentStore = create<InvestmentState>((set, get) => ({
       orderBy("date", "desc")
     );
 
-    return onSnapshot(q, (snapshot) => {
-      const txs = snapshot.docs.map((d) => ({
-        id: d.id,
-        ...d.data(),
-      })) as InvestmentTransaction[];
-      const current = new Map(get().transactions);
-      current.set(accountId, txs);
-      set({ transactions: current });
-    });
+    return onSnapshot(
+      q,
+      (snapshot) => {
+        const txs = snapshot.docs.map((d) => ({
+          id: d.id,
+          ...d.data(),
+        })) as InvestmentTransaction[];
+        const current = new Map(get().transactions);
+        current.set(accountId, txs);
+        set({ transactions: current });
+      },
+      (error) => {
+        console.error(`Transaction subscription error for ${accountId}:`, error);
+      }
+    );
   },
 
   addAccount: async (uid, data) => {
@@ -161,6 +183,24 @@ export const useInvestmentStore = create<InvestmentState>((set, get) => ({
   },
 
   deleteAccount: async (uid, id) => {
+    // Cascade delete: remove holdings and transactions subcollections first
+    const holdingsRef = collection(
+      db, "users", uid, "investmentAccounts", id, "holdings"
+    );
+    const holdingsSnap = await getDocs(holdingsRef);
+    for (const holdingDoc of holdingsSnap.docs) {
+      await deleteDoc(holdingDoc.ref);
+    }
+
+    const transactionsRef = collection(
+      db, "users", uid, "investmentAccounts", id, "transactions"
+    );
+    const transactionsSnap = await getDocs(transactionsRef);
+    for (const txDoc of transactionsSnap.docs) {
+      await deleteDoc(txDoc.ref);
+    }
+
+    // Then delete the account itself
     const ref = doc(db, "users", uid, "investmentAccounts", id);
     await deleteDoc(ref);
   },
@@ -243,7 +283,6 @@ export const useInvestmentStore = create<InvestmentState>((set, get) => ({
   },
 
   deleteTransaction: async (uid, accountId, transactionId) => {
-    // Get the transaction data before deleting so we can adjust holdings
     const txRef = doc(
       db,
       "users",
@@ -254,14 +293,14 @@ export const useInvestmentStore = create<InvestmentState>((set, get) => ({
       transactionId
     );
 
-    // Find the transaction in local state
-    const txs = get().transactions.get(accountId) ?? [];
-    const tx = txs.find((t) => t.id === transactionId);
+    // Read from Firestore directly to avoid stale state
+    const txSnap = await getDoc(txRef);
+    const tx = txSnap.exists() ? (txSnap.data() as Omit<InvestmentTransaction, "id">) : null;
 
     await deleteDoc(txRef);
 
-    // Adjust holdings if this was a buy transaction
-    if (tx && (tx.type === "buy" || (tx.type === "dividend" && (tx as any).isReinvested))) {
+    // Adjust holdings if this was a buy or reinvested dividend transaction
+    if (tx && (tx.type === "buy" || (tx.type === "dividend" && tx.isReinvested === true))) {
       const holdingsRef = collection(
         db,
         "users",
@@ -281,6 +320,9 @@ export const useInvestmentStore = create<InvestmentState>((set, get) => ({
         if (newShares <= 0) {
           await deleteDoc(holdingDoc.ref);
         } else {
+          if (newCostBasis < 0) {
+            console.warn(`Negative cost basis for ${tx.ticker}: ${newCostBasis}, capping to 0`);
+          }
           await updateDoc(holdingDoc.ref, {
             shares: newShares,
             costBasis: Math.max(0, newCostBasis),

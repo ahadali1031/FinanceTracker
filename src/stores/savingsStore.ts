@@ -6,6 +6,7 @@ import {
   doc,
   query,
   orderBy,
+  getDocs,
   onSnapshot,
 } from "firebase/firestore";
 import { db } from "@/src/lib/firebase";
@@ -15,6 +16,7 @@ interface SavingsState {
   accounts: SavingsAccount[];
   snapshots: Map<string, SavingsSnapshot[]>;
   loading: boolean;
+  error: string | null;
   subscribeToAccounts: (uid: string) => () => void;
   addAccount: (
     uid: string,
@@ -39,9 +41,10 @@ export const useSavingsStore = create<SavingsState>((set, get) => ({
   accounts: [],
   snapshots: new Map(),
   loading: true,
+  error: null,
 
   subscribeToAccounts: (uid: string) => {
-    set({ loading: true });
+    set({ loading: true, error: null });
     const q = query(
       collection(db, "users", uid, "savingsAccounts"),
       orderBy("name", "asc")
@@ -49,45 +52,58 @@ export const useSavingsStore = create<SavingsState>((set, get) => ({
 
     const snapshotUnsubscribes: (() => void)[] = [];
 
-    const accountsUnsubscribe = onSnapshot(q, (snapshot) => {
-      const accounts = snapshot.docs.map((d) => ({
-        id: d.id,
-        ...d.data(),
-      })) as SavingsAccount[];
+    const accountsUnsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const accounts = snapshot.docs.map((d) => ({
+          id: d.id,
+          ...d.data(),
+        })) as SavingsAccount[];
 
-      // Clean up previous snapshot listeners
-      snapshotUnsubscribes.forEach((unsub) => unsub());
-      snapshotUnsubscribes.length = 0;
+        // Clean up previous snapshot listeners
+        snapshotUnsubscribes.forEach((unsub) => unsub());
+        snapshotUnsubscribes.length = 0;
 
-      const newSnapshots = new Map<string, SavingsSnapshot[]>();
+        const newSnapshots = new Map<string, SavingsSnapshot[]>();
 
-      for (const account of accounts) {
-        const snapshotsQuery = query(
-          collection(
-            db,
-            "users",
-            uid,
-            "savingsAccounts",
-            account.id,
-            "snapshots"
-          ),
-          orderBy("snapshotDate", "desc")
-        );
-        const unsub = onSnapshot(snapshotsQuery, (snapshotsSnap) => {
-          const s = snapshotsSnap.docs.map((d) => ({
-            id: d.id,
-            ...d.data(),
-          })) as SavingsSnapshot[];
-          const current = new Map(get().snapshots);
-          current.set(account.id, s);
-          set({ snapshots: current });
-        });
-        snapshotUnsubscribes.push(unsub);
-        newSnapshots.set(account.id, []);
+        for (const account of accounts) {
+          const snapshotsQuery = query(
+            collection(
+              db,
+              "users",
+              uid,
+              "savingsAccounts",
+              account.id,
+              "snapshots"
+            ),
+            orderBy("snapshotDate", "desc")
+          );
+          const unsub = onSnapshot(
+            snapshotsQuery,
+            (snapshotsSnap) => {
+              const s = snapshotsSnap.docs.map((d) => ({
+                id: d.id,
+                ...d.data(),
+              })) as SavingsSnapshot[];
+              const current = new Map(get().snapshots);
+              current.set(account.id, s);
+              set({ snapshots: current });
+            },
+            (error) => {
+              console.error(`Savings snapshots error for ${account.id}:`, error);
+            }
+          );
+          snapshotUnsubscribes.push(unsub);
+          newSnapshots.set(account.id, []);
+        }
+
+        set({ accounts, snapshots: newSnapshots, loading: false, error: null });
+      },
+      (error) => {
+        console.error("Savings subscription error:", error);
+        set({ loading: false, error: error.message });
       }
-
-      set({ accounts, snapshots: newSnapshots, loading: false });
-    });
+    );
 
     return () => {
       accountsUnsubscribe();
@@ -100,6 +116,15 @@ export const useSavingsStore = create<SavingsState>((set, get) => ({
   },
 
   deleteAccount: async (uid, id) => {
+    // Cascade delete: remove all snapshots first
+    const snapshotsRef = collection(
+      db, "users", uid, "savingsAccounts", id, "snapshots"
+    );
+    const snapshotsSnap = await getDocs(snapshotsRef);
+    for (const snapDoc of snapshotsSnap.docs) {
+      await deleteDoc(snapDoc.ref);
+    }
+    // Then delete the account
     const ref = doc(db, "users", uid, "savingsAccounts", id);
     await deleteDoc(ref);
   },

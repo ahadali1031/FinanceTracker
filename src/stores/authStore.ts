@@ -20,7 +20,12 @@ export const useAuthStore = create<AuthState>((set) => ({
   setLoading: (loading) => set({ loading }),
 
   signOut: async () => {
-    await firebaseSignOut(auth);
-    set({ user: null });
+    try {
+      await firebaseSignOut(auth);
+      set({ user: null });
+    } catch (error) {
+      console.error("Sign out failed:", error);
+      throw error;
+    }
   },
 }));

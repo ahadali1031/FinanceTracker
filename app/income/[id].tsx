@@ -60,15 +60,14 @@ export default function EditIncomeScreen() {
   const [errors, setErrors] = useState<{ amount?: string; source?: string }>({});
 
   useEffect(() => {
-    if (income && !initialized) {
-      setAmount(income.amount.toFixed(2));
-      setSource(income.source);
-      setDescription(income.description);
-      setDate(income.date.toDate());
-      setIsBusiness(income.isBusiness ?? false);
-      setIsRecurring(income.isRecurring ?? false);
-      setInitialized(true);
-    }
+    if (!income || initialized) return;
+    setAmount(income.amount.toFixed(2));
+    setSource(income.source);
+    setDescription(income.description);
+    setDate(income.date?.toDate?.() ?? new Date());
+    setIsBusiness(income.isBusiness ?? false);
+    setIsRecurring(income.isRecurring ?? false);
+    setInitialized(true);
   }, [income, initialized]);
 
   const validate = (): boolean => {

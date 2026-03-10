@@ -116,14 +116,20 @@ export default function SubscriptionDetailScreen() {
 
   const handleDelete = () => {
     if (!user?.uid || !id) return;
+    const doDelete = () => {
+      deleteSubscription(user.uid, id)
+        .then(() => router.back())
+        .catch((err) => {
+          if (Platform.OS === 'web') window.alert('Failed to delete subscription.');
+          else Alert.alert('Error', 'Failed to delete subscription.');
+        });
+    };
     if (Platform.OS === 'web') {
-      if (window.confirm(`Delete "${name}"?`)) {
-        deleteSubscription(user.uid, id).then(() => router.back());
-      }
+      if (window.confirm(`Delete "${name}"?`)) doDelete();
     } else {
       Alert.alert('Delete Subscription', `Delete "${name}"?`, [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: () => deleteSubscription(user.uid, id).then(() => router.back()) },
+        { text: 'Delete', style: 'destructive', onPress: doDelete },
       ]);
     }
   };

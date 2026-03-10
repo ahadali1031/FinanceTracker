@@ -60,15 +60,14 @@ export default function EditExpenseScreen() {
   const [errors, setErrors] = useState<{ amount?: string; category?: string }>({});
 
   useEffect(() => {
-    if (expense && !initialized) {
-      setAmount(expense.amount.toFixed(2));
-      setCategory(expense.category);
-      setDescription(expense.description);
-      setDate(expense.date.toDate());
-      setIsBusiness(expense.isBusiness ?? false);
-      setIsRecurring(expense.isRecurring ?? false);
-      setInitialized(true);
-    }
+    if (!expense || initialized) return;
+    setAmount(expense.amount.toFixed(2));
+    setCategory(expense.category);
+    setDescription(expense.description);
+    setDate(expense.date?.toDate?.() ?? new Date());
+    setIsBusiness(expense.isBusiness ?? false);
+    setIsRecurring(expense.isRecurring ?? false);
+    setInitialized(true);
   }, [expense, initialized]);
 
   const validate = (): boolean => {

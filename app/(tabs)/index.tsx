@@ -20,6 +20,7 @@ import { useBudgetStore } from '@/src/stores/budgetStore';
 import { useInvestmentStore } from '@/src/stores/investmentStore';
 import { DashboardSkeleton } from '@/src/components/ui';
 import { formatCurrency } from '@/src/utils/currency';
+import { getBatchQuotes, type StockQuote } from '@/src/lib/stock-api';
 
 function FadeInView({
   delay = 0,
@@ -148,6 +149,20 @@ export default function DashboardScreen() {
   const expLoading = useExpenseStore((s) => s.loading);
   const incLoading = useIncomeStore((s) => s.loading);
 
+  // Fetch current stock/crypto quotes for investment valuation
+  const [quotes, setQuotes] = useState<Map<string, StockQuote>>(new Map());
+  useEffect(() => {
+    const tickers: string[] = [];
+    for (const acct of investmentAccounts) {
+      const h = investmentHoldings.get(acct.id) ?? [];
+      for (const holding of h) {
+        if (holding.ticker) tickers.push(holding.ticker);
+      }
+    }
+    if (tickers.length === 0) return;
+    getBatchQuotes(tickers).then(setQuotes).catch(() => {});
+  }, [investmentAccounts, investmentHoldings]);
+
   // Subscribe to all data
   useEffect(() => {
     if (!user?.uid) return;
@@ -201,16 +216,18 @@ export default function DashboardScreen() {
     for (const acct of investmentAccounts) {
       const h = investmentHoldings.get(acct.id) ?? [];
       for (const holding of h) {
-        investTotal += holding.costBasis;
+        const quote = quotes.get(holding.ticker?.toUpperCase());
+        // Use current market value if quote available, otherwise fall back to cost basis
+        investTotal += quote ? holding.shares * quote.price : holding.costBasis;
       }
     }
 
     const nw = checking + savings + investTotal;
 
     return { monthlyExpenses: expMonthly, monthlyIncome: incMonthly, netWorth: nw, investmentTotal: investTotal, checkingBalance: checking, businessExpenses: bizExp, businessIncome: bizInc };
-  }, [expenses, incomes, getTotalSavings, investmentAccounts, investmentHoldings]);
+  }, [expenses, incomes, getTotalSavings, investmentAccounts, investmentHoldings, quotes]);
 
-  const monthlySubscriptions = useMemo(() => getMonthlyTotal(), [subscriptions]);
+  const monthlySubscriptions = useMemo(() => getMonthlyTotal(), [getMonthlyTotal, subscriptions]);
 
   // Budget summary
   const { budgetTotal, budgetSpent } = useMemo(() => {
@@ -255,12 +272,13 @@ export default function DashboardScreen() {
     const now = new Date();
     const currentSavings = getTotalSavings();
 
-    // Compute investment total (current snapshot)
+    // Compute investment total (current market value)
     let investSnap = 0;
     for (const acct of investmentAccounts) {
       const h = investmentHoldings.get(acct.id) ?? [];
       for (const holding of h) {
-        investSnap += holding.costBasis;
+        const quote = quotes.get(holding.ticker?.toUpperCase());
+        investSnap += quote ? holding.shares * quote.price : holding.costBasis;
       }
     }
 
@@ -321,7 +339,7 @@ export default function DashboardScreen() {
     }));
 
     return { netWorthData: nwData, expenseBarData: barData };
-  }, [expenses, incomes, monthCount, getTotalSavings, investmentAccounts, investmentHoldings]);
+  }, [expenses, incomes, monthCount, getTotalSavings, investmentAccounts, investmentHoldings, quotes]);
 
   const TIME_RANGES: ('3M' | '6M' | '1Y')[] = ['3M', '6M', '1Y'];
 

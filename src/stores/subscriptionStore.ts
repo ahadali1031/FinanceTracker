@@ -17,6 +17,7 @@ import type { Subscription } from "@/src/types";
 interface SubscriptionState {
   subscriptions: Subscription[];
   loading: boolean;
+  error: string | null;
   subscribeToSubscriptions: (uid: string) => () => void;
   addSubscription: (
     uid: string,
@@ -37,20 +38,28 @@ interface SubscriptionState {
 export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
   subscriptions: [],
   loading: true,
+  error: null,
 
   subscribeToSubscriptions: (uid: string) => {
-    set({ loading: true });
+    set({ loading: true, error: null });
     const q = query(
       collection(db, "users", uid, "subscriptions"),
       orderBy("nextBillingDate", "asc")
     );
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const subscriptions = snapshot.docs.map((d) => ({
-        id: d.id,
-        ...d.data(),
-      })) as Subscription[];
-      set({ subscriptions, loading: false });
-    });
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const subscriptions = snapshot.docs.map((d) => ({
+          id: d.id,
+          ...d.data(),
+        })) as Subscription[];
+        set({ subscriptions, loading: false, error: null });
+      },
+      (error) => {
+        console.error("Subscription subscription error:", error);
+        set({ loading: false, error: error.message });
+      }
+    );
     return unsubscribe;
   },
 
@@ -99,7 +108,8 @@ export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
     const cutoff = new Date(now.getTime() + withinDays * 24 * 60 * 60 * 1000);
     return get().subscriptions.filter((s) => {
       if (!s.isActive) return false;
-      const billing = s.nextBillingDate.toDate();
+      const billing = s.nextBillingDate?.toDate?.();
+      if (!billing) return false;
       return billing >= now && billing <= cutoff;
     });
   },

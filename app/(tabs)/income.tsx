@@ -45,6 +45,7 @@ function AnimatedIncomeRow({
   item,
   index,
   onDelete,
+  onPress,
   colors,
   spacing,
   borderRadius,
@@ -54,6 +55,7 @@ function AnimatedIncomeRow({
   item: Income;
   index: number;
   onDelete: () => void;
+  onPress: () => void;
   colors: ReturnType<typeof useTheme>['colors'];
   spacing: ReturnType<typeof useTheme>['spacing'];
   borderRadius: ReturnType<typeof useTheme>['borderRadius'];
@@ -73,6 +75,7 @@ function AnimatedIncomeRow({
 
   return (
     <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: fadeAnim.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }] }}>
+      <Pressable onPress={onPress}>
       <Card style={[styles.incomeRow, { marginHorizontal: spacing.md, marginBottom: spacing.sm }]}>
         <View style={[styles.accentBar, { backgroundColor: colors.income, borderTopLeftRadius: borderRadius.md, borderBottomLeftRadius: borderRadius.md }]} />
         <View style={[styles.rowContent, { paddingVertical: spacing.md, paddingRight: spacing.md, paddingLeft: spacing.md }]}>
@@ -118,6 +121,7 @@ function AnimatedIncomeRow({
           </View>
         </View>
       </Card>
+      </Pressable>
     </Animated.View>
   );
 }
@@ -197,6 +201,7 @@ export default function IncomeScreen() {
         item={item}
         index={index}
         onDelete={() => handleDelete(item.id)}
+        onPress={() => router.push(`/income/${item.id}` as any)}
         colors={colors}
         spacing={spacing}
         borderRadius={borderRadius}
@@ -204,7 +209,7 @@ export default function IncomeScreen() {
         fontWeight={fontWeight}
       />
     ),
-    [colors, spacing, borderRadius, fontSize, fontWeight, handleDelete],
+    [colors, spacing, borderRadius, fontSize, fontWeight, handleDelete, router],
   );
 
   if (loading) {

@@ -14,8 +14,8 @@ export function formatDate(date: Date | Timestamp): string {
 }
 
 /** Format as "March 2026" */
-export function formatMonthYear(date: Date): string {
-  return format(date, "MMMM yyyy");
+export function formatMonthYear(date: Date | Timestamp): string {
+  return format(toDate(date), "MMMM yyyy");
 }
 
 /** Get the first and last moment of the month containing `date`. */

@@ -48,11 +48,13 @@ function FadeInView({ delay = 0, children, style }: { delay?: number; children: 
   );
 }
 
-const TRANSACTION_TYPES: { id: InvestmentTransactionType; label: string; icon: string; color: string }[] = [
-  { id: 'buy', label: 'Buy', icon: 'arrow-down-circle', color: '#10B981' },
-  { id: 'sell', label: 'Sell', icon: 'arrow-up-circle', color: '#F43F5E' },
-  { id: 'dividend', label: 'Dividend', icon: 'cash', color: '#F59E0B' },
-];
+function getTransactionTypes(colors: any): { id: InvestmentTransactionType; label: string; icon: string; color: string }[] {
+  return [
+    { id: 'buy', label: 'Buy', icon: 'arrow-down-circle', color: colors.income },
+    { id: 'sell', label: 'Sell', icon: 'arrow-up-circle', color: colors.expense },
+    { id: 'dividend', label: 'Dividend', icon: 'cash', color: colors.warning },
+  ];
+}
 
 const ACCOUNT_TYPE_ICONS: Record<string, string> = {
   brokerage: 'bar-chart',
@@ -64,6 +66,7 @@ const ACCOUNT_TYPE_ICONS: Record<string, string> = {
 
 export default function AddTransactionScreen() {
   const { colors, spacing, borderRadius, fontSize, fontWeight } = useTheme();
+  const TRANSACTION_TYPES = useMemo(() => getTransactionTypes(colors), [colors]);
   const router = useRouter();
   const { accountId: paramAccountId, accountName } = useLocalSearchParams<{ accountId?: string; accountName?: string }>();
 

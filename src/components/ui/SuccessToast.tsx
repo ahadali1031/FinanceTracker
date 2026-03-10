@@ -31,7 +31,7 @@ export function SuccessToast({ message, visible, onHide, duration = 2000 }: Succ
 
       return () => clearTimeout(timer);
     }
-  }, [visible]);
+  }, [visible, onHide, duration]);
 
   if (!visible) return null;
 
