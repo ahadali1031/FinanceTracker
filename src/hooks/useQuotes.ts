@@ -8,7 +8,7 @@ import { getBatchQuotes, type StockQuote } from "@/src/lib/stock-api";
  */
 export function useQuotes(
   tickers: string[],
-  refreshInterval = 5 * 60 * 1000
+  refreshInterval = 15 * 60 * 1000
 ) {
   const [quotes, setQuotes] = useState<Map<string, StockQuote>>(new Map());
   const [loading, setLoading] = useState(false);

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   StyleSheet,
   View,
@@ -9,7 +9,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
-  Animated,
   Switch,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -73,7 +72,12 @@ export default function SubscriptionDetailScreen() {
   const handleSave = async () => {
     if (!user?.uid || !id) return;
     const parsed = parseFloat(amount);
-    if (!parsed || parsed <= 0 || !name.trim() || !category) return;
+    if (!parsed || parsed <= 0 || !name.trim() || !category) {
+      const msg = 'Please fill in all required fields (name, amount, category).';
+      if (Platform.OS === 'web') window.alert(msg);
+      else Alert.alert('Missing Fields', msg);
+      return;
+    }
 
     const nextBilling = computeNextBillingDate(startDate, frequency);
 

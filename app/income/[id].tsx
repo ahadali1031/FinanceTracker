@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -10,7 +10,6 @@ import {
   Platform,
   ActivityIndicator,
   Switch,
-  Animated,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Timestamp } from 'firebase/firestore';
@@ -86,7 +85,8 @@ export default function EditIncomeScreen() {
       showToast('Income updated');
       router.back();
     } catch (error) {
-      Alert.alert('Error', 'Failed to update income. Please try again.');
+      if (Platform.OS === 'web') window.alert('Failed to update income. Please try again.');
+      else Alert.alert('Error', 'Failed to update income. Please try again.');
     } finally {
       setSaving(false);
     }
@@ -94,21 +94,23 @@ export default function EditIncomeScreen() {
 
   const handleDelete = () => {
     if (!user?.uid || !id) return;
-    Alert.alert('Delete Income', 'Are you sure you want to delete this income?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await deleteIncome(user.uid, id);
-            router.back();
-          } catch (error) {
-            Alert.alert('Error', 'Failed to delete income.');
-          }
-        },
-      },
-    ]);
+    const doDelete = async () => {
+      try {
+        await deleteIncome(user.uid, id);
+        router.back();
+      } catch (error) {
+        if (Platform.OS === 'web') window.alert('Failed to delete income.');
+        else Alert.alert('Error', 'Failed to delete income.');
+      }
+    };
+    if (Platform.OS === 'web') {
+      if (window.confirm('Are you sure you want to delete this income?')) doDelete();
+    } else {
+      Alert.alert('Delete Income', 'Are you sure you want to delete this income?', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: doDelete },
+      ]);
+    }
   };
 
   if (!income) {

@@ -1,4 +1,4 @@
-// Alpha Vantage — free tier: 25 req/min
+// Alpha Vantage — free tier: 25 req/day, 5 req/min
 // Get your key at https://www.alphavantage.co/support/#api-key
 const ALPHA_VANTAGE_API_KEY = process.env.EXPO_PUBLIC_ALPHA_VANTAGE_API_KEY ?? "demo";
 
@@ -7,7 +7,43 @@ const AV_BASE_URL = "https://www.alphavantage.co/query";
 // CoinGecko — free tier: 10-30 req/min, no key needed
 const CG_BASE_URL = "https://api.coingecko.com/api/v3";
 
-const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes — reduce API calls
+
+// --- Rate limiting ---
+// Alpha Vantage free tier: 5 req/min, 25 req/day
+let avCallTimestamps: number[] = [];
+const AV_MAX_PER_MINUTE = 4; // stay under 5/min limit
+const AV_MAX_PER_DAY = 20; // stay under 25/day limit
+let avDailyCount = 0;
+let avDailyResetTime = Date.now() + 24 * 60 * 60 * 1000;
+
+function checkAVRateLimit(): boolean {
+  const now = Date.now();
+  // Reset daily counter
+  if (now > avDailyResetTime) {
+    avDailyCount = 0;
+    avDailyResetTime = now + 24 * 60 * 60 * 1000;
+  }
+  if (avDailyCount >= AV_MAX_PER_DAY) return false;
+  // Per-minute check
+  avCallTimestamps = avCallTimestamps.filter((t) => now - t < 60_000);
+  if (avCallTimestamps.length >= AV_MAX_PER_MINUTE) return false;
+  avCallTimestamps.push(now);
+  avDailyCount++;
+  return true;
+}
+
+// CoinGecko: 10 req/min on free tier
+let cgCallTimestamps: number[] = [];
+const CG_MAX_PER_MINUTE = 8;
+
+function checkCGRateLimit(): boolean {
+  const now = Date.now();
+  cgCallTimestamps = cgCallTimestamps.filter((t) => now - t < 60_000);
+  if (cgCallTimestamps.length >= CG_MAX_PER_MINUTE) return false;
+  cgCallTimestamps.push(now);
+  return true;
+}
 
 interface CacheEntry<T> {
   data: T;
@@ -50,6 +86,10 @@ export async function getStockQuote(ticker: string): Promise<StockQuote> {
   const cacheKey = `quote:${ticker}`;
   const cached = getCached<StockQuote>(cacheKey);
   if (cached) return cached;
+
+  if (!checkAVRateLimit()) {
+    throw new Error(`Rate limit reached — skipping quote for "${ticker}"`);
+  }
 
   const url = `${AV_BASE_URL}?function=GLOBAL_QUOTE&symbol=${encodeURIComponent(ticker)}&apikey=${ALPHA_VANTAGE_API_KEY}`;
   const response = await fetch(url);
@@ -94,6 +134,10 @@ export async function getStockHistory(
   const cacheKey = `history:${ticker}:${period}`;
   const cached = getCached<StockHistoryEntry[]>(cacheKey);
   if (cached) return cached;
+
+  if (!checkAVRateLimit()) {
+    throw new Error(`Rate limit reached — skipping history for "${ticker}"`);
+  }
 
   const fn = PERIOD_FUNCTION_MAP[period];
   const url = `${AV_BASE_URL}?function=${fn}&symbol=${encodeURIComponent(ticker)}&apikey=${ALPHA_VANTAGE_API_KEY}`;
@@ -157,6 +201,10 @@ export async function getCryptoQuote(ticker: string): Promise<StockQuote> {
   const cached = getCached<StockQuote>(cacheKey);
   if (cached) return cached;
 
+  if (!checkCGRateLimit()) {
+    throw new Error(`Rate limit reached — skipping crypto quote for "${ticker}"`);
+  }
+
   const url = `${CG_BASE_URL}/simple/price?ids=${coinId}&vs_currencies=usd&include_24hr_change=true&include_24hr_vol=false`;
   const response = await fetch(url);
   if (!response.ok) {
@@ -207,6 +255,15 @@ export async function searchSymbol(
       type: "Crypto",
       region: "Global",
     }));
+
+  if (!checkAVRateLimit()) {
+    // Return just crypto matches if rate limited
+    if (cryptoMatches.length > 0) {
+      setCache(cacheKey, cryptoMatches);
+      return cryptoMatches;
+    }
+    throw new Error("Rate limit reached — try again later");
+  }
 
   const url = `${AV_BASE_URL}?function=SYMBOL_SEARCH&keywords=${encodeURIComponent(keywords)}&apikey=${ALPHA_VANTAGE_API_KEY}`;
   const response = await fetch(url);

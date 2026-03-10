@@ -18,15 +18,26 @@ const CATEGORY_IDS = EXPENSE_CATEGORIES.map((c) => c.id).join(", ");
 
 const categoryCache = new Map<string, string>(); // description -> category id
 
-/** Simple in-memory rate limiter: max N calls per minute */
+/** Rate limiter: max N calls per minute + daily budget */
 let callTimestamps: number[] = [];
 const MAX_CALLS_PER_MINUTE = 8;
+const MAX_CALLS_PER_DAY = 50;
+let dailyCallCount = 0;
+let dailyResetTime = Date.now() + 24 * 60 * 60 * 1000;
 
 function checkRateLimit(): boolean {
   const now = Date.now();
+  // Reset daily counter
+  if (now > dailyResetTime) {
+    dailyCallCount = 0;
+    dailyResetTime = now + 24 * 60 * 60 * 1000;
+  }
+  if (dailyCallCount >= MAX_CALLS_PER_DAY) return false;
+  // Per-minute check
   callTimestamps = callTimestamps.filter((t) => now - t < 60_000);
   if (callTimestamps.length >= MAX_CALLS_PER_MINUTE) return false;
   callTimestamps.push(now);
+  dailyCallCount++;
   return true;
 }
 

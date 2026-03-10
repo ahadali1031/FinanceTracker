@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -10,7 +10,6 @@ import {
   Platform,
   ActivityIndicator,
   Switch,
-  Animated,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Timestamp } from 'firebase/firestore';
@@ -86,7 +85,8 @@ export default function EditExpenseScreen() {
       showToast('Expense updated');
       router.back();
     } catch (error) {
-      Alert.alert('Error', 'Failed to update expense. Please try again.');
+      if (Platform.OS === 'web') window.alert('Failed to update expense. Please try again.');
+      else Alert.alert('Error', 'Failed to update expense. Please try again.');
     } finally {
       setSaving(false);
     }
@@ -94,21 +94,23 @@ export default function EditExpenseScreen() {
 
   const handleDelete = () => {
     if (!user?.uid || !id) return;
-    Alert.alert('Delete Expense', 'Are you sure you want to delete this expense?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await deleteExpense(user.uid, id);
-            router.back();
-          } catch (error) {
-            Alert.alert('Error', 'Failed to delete expense.');
-          }
-        },
-      },
-    ]);
+    const doDelete = async () => {
+      try {
+        await deleteExpense(user.uid, id);
+        router.back();
+      } catch (error) {
+        if (Platform.OS === 'web') window.alert('Failed to delete expense.');
+        else Alert.alert('Error', 'Failed to delete expense.');
+      }
+    };
+    if (Platform.OS === 'web') {
+      if (window.confirm('Are you sure you want to delete this expense?')) doDelete();
+    } else {
+      Alert.alert('Delete Expense', 'Are you sure you want to delete this expense?', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: doDelete },
+      ]);
+    }
   };
 
   if (!expense) {
@@ -248,7 +250,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
   },
-  dateEmoji: {},
   dateText: {
     flex: 1,
   },
