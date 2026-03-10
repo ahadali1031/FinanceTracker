@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useMemo, useState } from 'react';
+import React, { useEffect, useRef, useMemo, useState, useCallback } from 'react';
 import {
   StyleSheet,
   View,
@@ -6,6 +6,7 @@ import {
   ScrollView,
   Animated,
   Pressable,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,6 +22,8 @@ import { useInvestmentStore } from '@/src/stores/investmentStore';
 import { DashboardSkeleton, ErrorBanner } from '@/src/components/ui';
 import { formatCurrency } from '@/src/utils/currency';
 import { getBatchQuotes, type StockQuote } from '@/src/lib/stock-api';
+import { generateInsights, type FinancialSummary } from '@/src/lib/gemini';
+import { EXPENSE_CATEGORIES } from '@/src/utils/categories';
 
 function FadeInView({
   delay = 0,
@@ -251,6 +254,85 @@ export default function DashboardScreen() {
     return { budgetTotal: total, budgetSpent: spent };
   }, [budgetTargets, expenses]);
 
+  // --- AI Insights ---
+  const [insights, setInsights] = useState<string[] | null>(null);
+  const [insightsLoading, setInsightsLoading] = useState(false);
+  const [showInsights, setShowInsights] = useState(true);
+  const insightsFetched = useRef(false);
+
+  // Build previous month data for comparison
+  const { prevMonthExpenses, prevMonthIncome, categoryBreakdown, prevCategoryBreakdown } = useMemo(() => {
+    const now = new Date();
+    const curYear = now.getFullYear();
+    const curMonth = now.getMonth();
+    const prevDate = new Date(curYear, curMonth - 1, 1);
+    const prevYear = prevDate.getFullYear();
+    const prevMonth = prevDate.getMonth();
+
+    let prevExp = 0;
+    let prevInc = 0;
+    const curCats: Record<string, number> = {};
+    const prevCats: Record<string, number> = {};
+
+    for (const e of expenses) {
+      const d = e.date.toDate();
+      const y = d.getFullYear();
+      const m = d.getMonth();
+      if (y === curYear && m === curMonth) {
+        const catName = EXPENSE_CATEGORIES.find((c) => c.id === e.category)?.name ?? e.category;
+        curCats[catName] = (curCats[catName] ?? 0) + e.amount;
+      } else if (y === prevYear && m === prevMonth) {
+        prevExp += e.amount;
+        const catName = EXPENSE_CATEGORIES.find((c) => c.id === e.category)?.name ?? e.category;
+        prevCats[catName] = (prevCats[catName] ?? 0) + e.amount;
+      }
+    }
+    for (const i of incomes) {
+      const d = i.date.toDate();
+      if (d.getFullYear() === prevYear && d.getMonth() === prevMonth) {
+        prevInc += i.amount;
+      }
+    }
+
+    return { prevMonthExpenses: prevExp, prevMonthIncome: prevInc, categoryBreakdown: curCats, prevCategoryBreakdown: prevCats };
+  }, [expenses, incomes]);
+
+  const fetchInsights = useCallback(async () => {
+    if (insightsLoading) return;
+    setInsightsLoading(true);
+    try {
+      const summary: FinancialSummary = {
+        monthlyExpenses,
+        monthlyIncome,
+        netWorth,
+        checkingBalance,
+        savingsTotal: getTotalSavings(),
+        investmentTotal,
+        monthlySubscriptions,
+        budgetSpent,
+        budgetTotal,
+        categoryBreakdown,
+        prevMonthExpenses,
+        prevMonthIncome,
+        prevCategoryBreakdown,
+      };
+      const result = await generateInsights(summary);
+      if (result) setInsights(result);
+    } catch {
+      // silently fail
+    } finally {
+      setInsightsLoading(false);
+    }
+  }, [monthlyExpenses, monthlyIncome, netWorth, checkingBalance, investmentTotal, monthlySubscriptions, budgetSpent, budgetTotal, categoryBreakdown, prevMonthExpenses, prevMonthIncome, prevCategoryBreakdown, getTotalSavings, insightsLoading]);
+
+  // Auto-fetch insights once when data is loaded
+  useEffect(() => {
+    if (!expLoading && !incLoading && !insightsFetched.current && expenses.length > 0) {
+      insightsFetched.current = true;
+      fetchInsights();
+    }
+  }, [expLoading, incLoading, expenses.length]);
+
   // Add business subscriptions to business expense total
   const businessSubscriptions = useMemo(() => {
     let total = 0;
@@ -264,11 +346,30 @@ export default function DashboardScreen() {
   const totalBusinessExpenses = businessExpenses + businessSubscriptions;
 
   // --- Chart data: time range selector ---
-  const [timeRange, setTimeRange] = useState<'3M' | '6M' | '1Y'>('6M');
-  const monthCount = timeRange === '3M' ? 3 : timeRange === '6M' ? 6 : 12;
+  const [timeRange, setTimeRange] = useState<'3M' | '6M' | '1Y' | 'ALL'>('6M');
 
   // Short month names
   const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+  // Compute month count — for ALL, derive from earliest transaction
+  const monthCount = useMemo(() => {
+    if (timeRange === '3M') return 3;
+    if (timeRange === '6M') return 6;
+    if (timeRange === '1Y') return 12;
+    // ALL: find earliest transaction date
+    const now = new Date();
+    let earliest = now;
+    for (const e of expenses) {
+      const d = e.date.toDate();
+      if (d < earliest) earliest = d;
+    }
+    for (const i of incomes) {
+      const d = i.date.toDate();
+      if (d < earliest) earliest = d;
+    }
+    const months = (now.getFullYear() - earliest.getFullYear()) * 12 + (now.getMonth() - earliest.getMonth()) + 1;
+    return Math.max(months, 2); // at least 2 months for the chart
+  }, [timeRange, expenses, incomes]);
 
   // Compute last N months of cumulative net worth and monthly expense totals
   const { netWorthData, expenseBarData } = useMemo(() => {
@@ -326,25 +427,28 @@ export default function DashboardScreen() {
     let cumulativeInc = priorIncome;
     let cumulativeExp = priorExpense;
 
+    // For ALL with many months, show year in label; for shorter ranges just month name
+    const showYear = monthCount > 12;
+
     const nwData = monthBuckets.map((b) => {
       cumulativeInc += b.income;
       cumulativeExp += b.expense;
       const checking = cumulativeInc - cumulativeExp;
       return {
-        label: MONTH_NAMES[b.month],
+        label: showYear ? `${MONTH_NAMES[b.month]} '${String(b.year).slice(2)}` : MONTH_NAMES[b.month],
         value: checking + currentSavings + investSnap,
       };
     });
 
     const barData = monthBuckets.map((b) => ({
-      label: MONTH_NAMES[b.month],
+      label: showYear ? `${MONTH_NAMES[b.month]} '${String(b.year).slice(2)}` : MONTH_NAMES[b.month],
       value: b.expense,
     }));
 
     return { netWorthData: nwData, expenseBarData: barData };
   }, [expenses, incomes, monthCount, getTotalSavings, investmentAccounts, investmentHoldings, quotes]);
 
-  const TIME_RANGES: ('3M' | '6M' | '1Y')[] = ['3M', '6M', '1Y'];
+  const TIME_RANGES: ('3M' | '6M' | '1Y' | 'ALL')[] = ['3M', '6M', '1Y', 'ALL'];
 
   if (expLoading || incLoading) {
     return (
@@ -407,6 +511,73 @@ export default function DashboardScreen() {
         </View>
       </FadeInView>
 
+      {/* AI Insights */}
+      {(insights || insightsLoading) && (
+        <FadeInView delay={125}>
+          <View
+            style={[
+              styles.insightsCard,
+              {
+                backgroundColor: colors.surface,
+                borderRadius: borderRadius.lg,
+                padding: spacing.md,
+                marginBottom: spacing.sm,
+                borderWidth: 1,
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            <Pressable
+              onPress={() => setShowInsights((v) => !v)}
+              style={styles.insightsHeader}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Ionicons name="flash" size={16} color={colors.primary} />
+                <Text style={{ color: colors.text, fontSize: fontSize.sm, fontWeight: fontWeight.semibold }}>
+                  AI Insights
+                </Text>
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                {!insightsLoading && (
+                  <Pressable
+                    onPress={(e) => { e.stopPropagation(); insightsFetched.current = false; fetchInsights(); }}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Ionicons name="refresh" size={16} color={colors.textTertiary} />
+                  </Pressable>
+                )}
+                <Ionicons
+                  name={showInsights ? 'chevron-up' : 'chevron-down'}
+                  size={16}
+                  color={colors.textTertiary}
+                />
+              </View>
+            </Pressable>
+            {showInsights && (
+              <View style={{ marginTop: spacing.sm }}>
+                {insightsLoading ? (
+                  <View style={{ alignItems: 'center', paddingVertical: spacing.md }}>
+                    <ActivityIndicator size="small" color={colors.primary} />
+                    <Text style={{ color: colors.textTertiary, fontSize: fontSize.xs, marginTop: spacing.xs }}>
+                      Analyzing your finances...
+                    </Text>
+                  </View>
+                ) : insights ? (
+                  insights.map((insight, i) => (
+                    <View key={i} style={{ flexDirection: 'row', marginBottom: i < insights.length - 1 ? spacing.sm : 0 }}>
+                      <Text style={{ color: colors.primary, fontSize: fontSize.sm, marginRight: spacing.sm }}>•</Text>
+                      <Text style={{ color: colors.textSecondary, fontSize: fontSize.sm, flex: 1, lineHeight: 20 }}>
+                        {insight}
+                      </Text>
+                    </View>
+                  ))
+                ) : null}
+              </View>
+            )}
+          </View>
+        </FadeInView>
+      )}
+
       {/* Net Worth Trend Chart */}
       {netWorthData.length >= 2 && (
         <FadeInView delay={150}>
@@ -463,8 +634,9 @@ export default function DashboardScreen() {
             </View>
             <View style={{ marginTop: spacing.sm }}>
               <LineChart
+                key={timeRange}
                 data={netWorthData}
-                height={140}
+                height={timeRange === 'ALL' && netWorthData.length > 12 ? 180 : 140}
                 lineColor={colors.primary}
                 fillColor={colors.primary}
                 showDots
@@ -836,6 +1008,12 @@ const styles = StyleSheet.create({
     height: 6,
     width: '100%',
     overflow: 'hidden',
+  },
+  insightsCard: {},
+  insightsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   chartCard: {},
   chartHeader: {

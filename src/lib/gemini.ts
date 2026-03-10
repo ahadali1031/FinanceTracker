@@ -30,7 +30,27 @@ function checkRateLimit(): boolean {
   return true;
 }
 
+// --- Insights cache ---
+let cachedInsights: string[] | null = null;
+let insightsCacheKey = "";
+
 // --- Types ---
+
+export interface FinancialSummary {
+  monthlyExpenses: number;
+  monthlyIncome: number;
+  netWorth: number;
+  checkingBalance: number;
+  savingsTotal: number;
+  investmentTotal: number;
+  monthlySubscriptions: number;
+  budgetSpent: number;
+  budgetTotal: number;
+  categoryBreakdown: Record<string, number>; // category -> amount this month
+  prevMonthExpenses: number;
+  prevMonthIncome: number;
+  prevCategoryBreakdown: Record<string, number>;
+}
 
 export interface ParsedExpense {
   amount: number;
@@ -133,6 +153,63 @@ Respond with ONLY the category ID, nothing else.`;
     return null;
   } catch (error) {
     console.error("Gemini category error:", error);
+    return null;
+  }
+}
+
+/**
+ * Generate 2-3 smart financial insights based on aggregated data.
+ * Results are cached per unique data snapshot to avoid redundant calls.
+ */
+export async function generateInsights(
+  summary: FinancialSummary
+): Promise<string[] | null> {
+  // Build a cache key from the summary to avoid re-calling with same data
+  const key = JSON.stringify(summary);
+  if (key === insightsCacheKey && cachedInsights) return cachedInsights;
+
+  if (!checkRateLimit()) {
+    console.warn("Gemini rate limit reached, skipping insights");
+    return cachedInsights;
+  }
+
+  const prompt = `You are a personal finance assistant. Analyze this monthly financial summary and give exactly 2-3 short, actionable insights. Each insight should be 1 sentence max.
+
+Focus on: spending trends vs last month, budget warnings, notable category changes, savings rate, or subscription costs relative to income. Be specific with numbers and percentages. Don't state obvious facts — only surface things worth knowing.
+
+Current month:
+- Income: $${summary.monthlyIncome.toFixed(0)}
+- Expenses: $${summary.monthlyExpenses.toFixed(0)}
+- Category breakdown: ${Object.entries(summary.categoryBreakdown).map(([k, v]) => `${k}: $${v.toFixed(0)}`).join(", ") || "none"}
+- Budget: $${summary.budgetSpent.toFixed(0)} spent of $${summary.budgetTotal.toFixed(0)} limit
+- Subscriptions: $${summary.monthlySubscriptions.toFixed(0)}/mo
+
+Previous month:
+- Income: $${summary.prevMonthIncome.toFixed(0)}
+- Expenses: $${summary.prevMonthExpenses.toFixed(0)}
+- Category breakdown: ${Object.entries(summary.prevCategoryBreakdown).map(([k, v]) => `${k}: $${v.toFixed(0)}`).join(", ") || "none"}
+
+Overall:
+- Net worth: $${summary.netWorth.toFixed(0)}
+- Checking: $${summary.checkingBalance.toFixed(0)}
+- Savings: $${summary.savingsTotal.toFixed(0)}
+- Investments: $${summary.investmentTotal.toFixed(0)}
+
+Respond with ONLY a JSON array of strings, no markdown:
+["insight 1", "insight 2", "insight 3"]`;
+
+  try {
+    const result = await getModel().generateContent(prompt);
+    const text = result.response.text().trim();
+    const insights = JSON.parse(text);
+    if (Array.isArray(insights) && insights.length > 0) {
+      cachedInsights = insights;
+      insightsCacheKey = key;
+      return insights;
+    }
+    return null;
+  } catch (error) {
+    console.error("Gemini insights error:", error);
     return null;
   }
 }
