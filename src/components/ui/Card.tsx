@@ -1,6 +1,5 @@
 import React, { useRef } from 'react';
 import {
-  StyleSheet,
   View,
   Pressable,
   ViewStyle,
@@ -19,15 +18,15 @@ interface CardProps {
 }
 
 export function Card({ children, style, onPress, variant = 'default' }: CardProps) {
-  const { isDark, colors, borderRadius, spacing } = useTheme();
+  const { isDark, colors, borderRadius, spacing, shadows } = useTheme();
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
   const handlePressIn = () => {
     Animated.spring(scaleAnim, {
-      toValue: 0.98,
+      toValue: 0.975,
       useNativeDriver: true,
-      speed: 50,
-      bounciness: 4,
+      damping: 15,
+      stiffness: 200,
     }).start();
   };
 
@@ -35,8 +34,8 @@ export function Card({ children, style, onPress, variant = 'default' }: CardProp
     Animated.spring(scaleAnim, {
       toValue: 1,
       useNativeDriver: true,
-      speed: 50,
-      bounciness: 4,
+      damping: 12,
+      stiffness: 180,
     }).start();
   };
 
@@ -54,13 +53,7 @@ export function Card({ children, style, onPress, variant = 'default' }: CardProp
           backgroundColor: isDark ? colors.surfaceElevated : colors.surface,
           ...(isDark
             ? { borderWidth: 1, borderColor: colors.border }
-            : {
-                shadowColor: '#6C5CE7',
-                shadowOffset: { width: 0, height: 8 },
-                shadowOpacity: 0.08,
-                shadowRadius: 24,
-                elevation: 6,
-              }),
+            : shadows.lg),
         };
       case 'outlined':
         return {
@@ -74,13 +67,7 @@ export function Card({ children, style, onPress, variant = 'default' }: CardProp
           ...base,
           ...(isDark
             ? { borderWidth: 1, borderColor: colors.border }
-            : {
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: 0.06,
-                shadowRadius: 16,
-                elevation: 3,
-              }),
+            : shadows.md),
         };
     }
   };

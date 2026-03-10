@@ -16,47 +16,10 @@ import { useTheme } from '@/constants/useTheme';
 import { useAuthStore } from '@/src/stores/authStore';
 import { useBudgetStore } from '@/src/stores/budgetStore';
 import { useExpenseStore } from '@/src/stores/expenseStore';
-import { AmountInput, Button, CategoryPicker } from '@/src/components/ui';
+import { AmountInput, Button, CategoryPicker, FadeInView } from '@/src/components/ui';
 import { EXPENSE_CATEGORIES } from '@/src/utils/categories';
 import { formatCurrency } from '@/src/utils/currency';
 import { useToastStore } from '@/src/stores/toastStore';
-
-function FadeInView({
-  delay = 0,
-  children,
-  style,
-}: {
-  delay?: number;
-  children: React.ReactNode;
-  style?: any;
-}) {
-  const opacity = useRef(new Animated.Value(0)).current;
-  const translateY = useRef(new Animated.Value(18)).current;
-
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      Animated.parallel([
-        Animated.timing(opacity, {
-          toValue: 1,
-          duration: 450,
-          useNativeDriver: true,
-        }),
-        Animated.timing(translateY, {
-          toValue: 0,
-          duration: 450,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    }, delay);
-    return () => clearTimeout(timeout);
-  }, []);
-
-  return (
-    <Animated.View style={[style, { opacity, transform: [{ translateY }] }]}>
-      {children}
-    </Animated.View>
-  );
-}
 
 function getProgressColor(
   percentage: number,

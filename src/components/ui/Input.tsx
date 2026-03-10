@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -7,6 +7,7 @@ import {
   KeyboardTypeOptions,
   ViewStyle,
   StyleProp,
+  Animated,
 } from 'react-native';
 import { useTheme } from '@/constants/useTheme';
 
@@ -39,6 +40,24 @@ export function Input({
 }: InputProps) {
   const { isDark, colors, borderRadius, fontSize, fontWeight, spacing } = useTheme();
   const [isFocused, setIsFocused] = useState(false);
+  const borderAnim = useRef(new Animated.Value(0)).current;
+  const labelColorAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.spring(borderAnim, {
+        toValue: isFocused ? 1 : 0,
+        useNativeDriver: false,
+        damping: 20,
+        stiffness: 200,
+      }),
+      Animated.timing(labelColorAnim, {
+        toValue: isFocused ? 1 : 0,
+        duration: 200,
+        useNativeDriver: false,
+      }),
+    ]).start();
+  }, [isFocused]);
 
   const getBorderColor = (): string => {
     if (error) return colors.danger;
@@ -48,6 +67,11 @@ export function Input({
 
   const borderColor = getBorderColor();
 
+  const animatedBorderWidth = borderAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 1.5],
+  });
+
   return (
     <View style={[styles.container, style]}>
       {label && (
@@ -55,7 +79,7 @@ export function Input({
           style={[
             styles.label,
             {
-              color: isFocused ? colors.primary : colors.textSecondary,
+              color: error ? colors.danger : isFocused ? colors.primary : colors.textSecondary,
               fontSize: fontSize.sm,
               fontWeight: fontWeight.semibold,
             },
@@ -64,11 +88,11 @@ export function Input({
           {label}
         </Text>
       )}
-      <View
+      <Animated.View
         style={[
           {
             borderRadius: borderRadius.md,
-            borderWidth: isFocused ? 1.5 : 1,
+            borderWidth: animatedBorderWidth,
             borderColor,
             backgroundColor: colors.surface,
           },
@@ -76,7 +100,7 @@ export function Input({
             !isDark && {
               shadowColor: colors.primary,
               shadowOffset: { width: 0, height: 0 },
-              shadowOpacity: 0.15,
+              shadowOpacity: 0.12,
               shadowRadius: 8,
               elevation: 2,
             },
@@ -105,7 +129,7 @@ export function Input({
           onSubmitEditing={onSubmitEditing}
           autoCapitalize={autoCapitalize}
         />
-      </View>
+      </Animated.View>
       {error && (
         <Text
           style={[

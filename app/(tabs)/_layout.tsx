@@ -12,11 +12,21 @@ function AnimatedTabButton({ children, onPress, onLongPress, accessibilityRole, 
   const scale = useRef(new Animated.Value(1)).current;
 
   const handlePressIn = useCallback(() => {
-    Animated.spring(scale, { toValue: 0.88, useNativeDriver: true, speed: 50, bounciness: 4 }).start();
+    Animated.spring(scale, {
+      toValue: 0.85,
+      useNativeDriver: true,
+      damping: 15,
+      stiffness: 250,
+    }).start();
   }, []);
 
   const handlePressOut = useCallback(() => {
-    Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 50, bounciness: 6 }).start();
+    Animated.spring(scale, {
+      toValue: 1,
+      useNativeDriver: true,
+      damping: 10,
+      stiffness: 200,
+    }).start();
   }, []);
 
   return (
@@ -36,6 +46,26 @@ function AnimatedTabButton({ children, onPress, onLongPress, accessibilityRole, 
   );
 }
 
+function TabIcon({ name, color, focused }: { name: string; color: string; focused: boolean }) {
+  const colorScheme = useColorScheme() ?? 'light';
+  const isDark = colorScheme === 'dark';
+  const tintColor = isDark ? theme.colors.primaryLight : theme.colors.primary;
+
+  return (
+    <View style={styles.tabIconContainer}>
+      <Ionicons name={name as any} size={22} color={color} />
+      {focused && (
+        <View
+          style={[
+            styles.activeIndicator,
+            { backgroundColor: tintColor },
+          ]}
+        />
+      )}
+    </View>
+  );
+}
+
 export default function TabLayout() {
   const colorScheme = useColorScheme() ?? 'light';
   const isDark = colorScheme === 'dark';
@@ -52,8 +82,8 @@ export default function TabLayout() {
           tabBarInactiveTintColor: colors.tabIconDefault,
           tabBarLabelStyle: {
             fontSize: theme.fontSize.xs,
-            fontWeight: theme.fontWeight.medium,
-            marginTop: 2,
+            fontWeight: theme.fontWeight.semibold,
+            marginTop: 0,
           },
           headerShown: true,
           headerStyle: {
@@ -76,24 +106,20 @@ export default function TabLayout() {
             bottom: 16,
             left: 16,
             right: 16,
-            height: 70,
-            borderRadius: 20,
+            height: 72,
+            borderRadius: 24,
             paddingBottom: 8,
             paddingTop: 8,
             borderTopWidth: 0,
             ...(isDark
               ? {
-                  backgroundColor: theme.colors.surface.dark + 'F0',
+                  backgroundColor: theme.colors.surface.dark + 'F5',
                   borderWidth: 1,
                   borderColor: theme.colors.border.dark,
                 }
               : {
-                  backgroundColor: theme.colors.surface.light + 'F5',
-                  shadowColor: '#000',
-                  shadowOffset: { width: 0, height: 8 },
-                  shadowOpacity: 0.1,
-                  shadowRadius: 24,
-                  elevation: 8,
+                  backgroundColor: theme.colors.surface.light + 'FA',
+                  ...theme.shadows.xl,
                 }),
           },
         }}
@@ -103,8 +129,8 @@ export default function TabLayout() {
           options={{
             title: 'Dashboard',
             tabBarButton: (props) => <AnimatedTabButton {...props} />,
-            tabBarIcon: ({ color }) => (
-              <Ionicons name="grid" size={24} color={color} />
+            tabBarIcon: ({ color, focused }) => (
+              <TabIcon name="grid" color={color} focused={focused} />
             ),
           }}
         />
@@ -113,8 +139,8 @@ export default function TabLayout() {
           options={{
             title: 'Transactions',
             tabBarButton: (props) => <AnimatedTabButton {...props} />,
-            tabBarIcon: ({ color }) => (
-              <Ionicons name="swap-horizontal" size={24} color={color} />
+            tabBarIcon: ({ color, focused }) => (
+              <TabIcon name="swap-horizontal" color={color} focused={focused} />
             ),
           }}
         />
@@ -136,7 +162,7 @@ export default function TabLayout() {
                   },
                 ]}
               >
-                <Ionicons name="add" size={30} color="#fff" />
+                <Ionicons name="add" size={28} color="#fff" />
               </View>
             ),
           }}
@@ -152,8 +178,8 @@ export default function TabLayout() {
           options={{
             title: 'Invest',
             tabBarButton: (props) => <AnimatedTabButton {...props} />,
-            tabBarIcon: ({ color }) => (
-              <Ionicons name="trending-up" size={24} color={color} />
+            tabBarIcon: ({ color, focused }) => (
+              <TabIcon name="trending-up" color={color} focused={focused} />
             ),
           }}
         />
@@ -162,8 +188,8 @@ export default function TabLayout() {
           options={{
             title: 'Settings',
             tabBarButton: (props) => <AnimatedTabButton {...props} />,
-            tabBarIcon: ({ color }) => (
-              <Ionicons name="settings" size={24} color={color} />
+            tabBarIcon: ({ color, focused }) => (
+              <TabIcon name="settings" color={color} focused={focused} />
             ),
           }}
         />
@@ -220,14 +246,26 @@ export default function TabLayout() {
 
 const styles = StyleSheet.create({
   addButton: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
+    shadowRadius: 12,
+    elevation: 8,
+    marginTop: -8,
+  },
+  tabIconContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 28,
+  },
+  activeIndicator: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    marginTop: 4,
   },
 });

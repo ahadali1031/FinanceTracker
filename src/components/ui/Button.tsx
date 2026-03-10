@@ -3,11 +3,13 @@ import {
   StyleSheet,
   Pressable,
   Text,
+  View,
   ActivityIndicator,
   ViewStyle,
   StyleProp,
   Animated,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/constants/useTheme';
 
 type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost';
@@ -19,6 +21,8 @@ interface ButtonProps {
   disabled?: boolean;
   loading?: boolean;
   style?: StyleProp<ViewStyle>;
+  icon?: string;
+  iconSize?: number;
 }
 
 export function Button({
@@ -28,16 +32,18 @@ export function Button({
   disabled = false,
   loading = false,
   style,
+  icon,
+  iconSize = 18,
 }: ButtonProps) {
-  const { isDark, colors, borderRadius, fontSize, fontWeight, spacing } = useTheme();
+  const { isDark, colors, borderRadius, fontSize, fontWeight, spacing, shadows } = useTheme();
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
   const handlePressIn = () => {
     Animated.spring(scaleAnim, {
       toValue: 0.96,
       useNativeDriver: true,
-      speed: 50,
-      bounciness: 4,
+      damping: 15,
+      stiffness: 200,
     }).start();
   };
 
@@ -45,8 +51,8 @@ export function Button({
     Animated.spring(scaleAnim, {
       toValue: 1,
       useNativeDriver: true,
-      speed: 50,
-      bounciness: 4,
+      damping: 12,
+      stiffness: 180,
     }).start();
   };
 
@@ -82,13 +88,7 @@ export function Button({
 
   const getShadowStyle = (): ViewStyle => {
     if (variant === 'primary' && !disabled && !isDark) {
-      return {
-        shadowColor: colors.primary,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-        elevation: 4,
-      };
+      return shadows.colored(colors.primary) as ViewStyle;
     }
     return {};
   };
@@ -114,18 +114,28 @@ export function Button({
         {loading ? (
           <ActivityIndicator color={textColor} />
         ) : (
-          <Text
-            style={[
-              styles.text,
-              {
-                color: textColor,
-                fontSize: fontSize.md,
-                fontWeight: fontWeight.semibold,
-              },
-            ]}
-          >
-            {title}
-          </Text>
+          <View style={styles.content}>
+            {icon && (
+              <Ionicons
+                name={icon as any}
+                size={iconSize}
+                color={textColor}
+                style={{ marginRight: spacing.sm }}
+              />
+            )}
+            <Text
+              style={[
+                styles.text,
+                {
+                  color: textColor,
+                  fontSize: fontSize.md,
+                  fontWeight: fontWeight.semibold,
+                },
+              ]}
+            >
+              {title}
+            </Text>
+          </View>
         )}
       </Pressable>
     </Animated.View>
@@ -139,6 +149,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 52,
+  },
+  content: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   text: {
     letterSpacing: 0.3,

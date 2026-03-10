@@ -13,7 +13,7 @@ import {
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/constants/useTheme';
-import { Card, EmptyState, CardSkeleton, ListItemSkeleton } from '@/src/components/ui';
+import { Card, EmptyState, CardSkeleton, ListItemSkeleton, FadeInView } from '@/src/components/ui';
 import { DonutChart } from '@/src/components/charts';
 import { useInvestmentStore } from '@/src/stores/investmentStore';
 import { useAuthStore } from '@/src/stores/authStore';
@@ -32,27 +32,6 @@ const ACCOUNT_TYPE_ICONS: Record<string, string> = {
   traditional_ira: 'shield',
   hsa: 'medkit',
 };
-
-function FadeInView({ delay = 0, children, style }: { delay?: number; children: React.ReactNode; style?: any }) {
-  const opacity = useRef(new Animated.Value(0)).current;
-  const translateY = useRef(new Animated.Value(14)).current;
-
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      Animated.parallel([
-        Animated.timing(opacity, { toValue: 1, duration: 400, useNativeDriver: true }),
-        Animated.timing(translateY, { toValue: 0, duration: 400, useNativeDriver: true }),
-      ]).start();
-    }, delay);
-    return () => clearTimeout(timeout);
-  }, []);
-
-  return (
-    <Animated.View style={[style, { opacity, transform: [{ translateY }] }]}>
-      {children}
-    </Animated.View>
-  );
-}
 
 function AnimatedAccountRow({
   account,

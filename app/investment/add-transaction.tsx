@@ -17,7 +17,7 @@ import { Timestamp } from 'firebase/firestore';
 import { Ionicons } from '@expo/vector-icons';
 
 import { useTheme } from '@/constants/useTheme';
-import { AmountInput, Button, Input, CalendarPicker } from '@/src/components/ui';
+import { AmountInput, Button, Input, CalendarPicker, FadeInView } from '@/src/components/ui';
 import { useInvestmentStore } from '@/src/stores/investmentStore';
 import { useExpenseStore } from '@/src/stores/expenseStore';
 import { useAuthStore } from '@/src/stores/authStore';
@@ -26,27 +26,6 @@ import { searchSymbol } from '@/src/lib/stock-api';
 import type { SymbolSearchResult } from '@/src/lib/stock-api';
 import type { InvestmentTransactionType } from '@/src/types';
 import { useToastStore } from '@/src/stores/toastStore';
-
-function FadeInView({ delay = 0, children, style }: { delay?: number; children: React.ReactNode; style?: any }) {
-  const opacity = useRef(new Animated.Value(0)).current;
-  const translateY = useRef(new Animated.Value(14)).current;
-
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      Animated.parallel([
-        Animated.timing(opacity, { toValue: 1, duration: 400, useNativeDriver: true }),
-        Animated.timing(translateY, { toValue: 0, duration: 400, useNativeDriver: true }),
-      ]).start();
-    }, delay);
-    return () => clearTimeout(timeout);
-  }, []);
-
-  return (
-    <Animated.View style={[style, { opacity, transform: [{ translateY }] }]}>
-      {children}
-    </Animated.View>
-  );
-}
 
 function getTransactionTypes(colors: any): { id: InvestmentTransactionType; label: string; icon: string; color: string }[] {
   return [

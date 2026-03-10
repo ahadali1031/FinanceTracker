@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@/constants/useTheme';
-import { Card, EmptyState, CardSkeleton, ListItemSkeleton } from '@/src/components/ui';
+import { Card, EmptyState, CardSkeleton, ListItemSkeleton, FadeInView } from '@/src/components/ui';
 import { DonutChart } from '@/src/components/charts';
 import { useExpenseStore } from '@/src/stores/expenseStore';
 import { useIncomeStore } from '@/src/stores/incomeStore';
@@ -23,43 +23,6 @@ import { formatDate, formatMonthYear } from '@/src/utils/date';
 import { EXPENSE_CATEGORIES } from '@/src/utils/categories';
 import { Ionicons } from '@expo/vector-icons';
 import type { Expense, Income } from '@/src/types';
-
-function FadeInView({
-  delay = 0,
-  children,
-  style,
-}: {
-  delay?: number;
-  children: React.ReactNode;
-  style?: any;
-}) {
-  const opacity = useRef(new Animated.Value(0)).current;
-  const translateY = useRef(new Animated.Value(12)).current;
-
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      Animated.parallel([
-        Animated.timing(opacity, {
-          toValue: 1,
-          duration: 350,
-          useNativeDriver: true,
-        }),
-        Animated.timing(translateY, {
-          toValue: 0,
-          duration: 350,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    }, delay);
-    return () => clearTimeout(timeout);
-  }, []);
-
-  return (
-    <Animated.View style={[style, { opacity, transform: [{ translateY }] }]}>
-      {children}
-    </Animated.View>
-  );
-}
 
 const categoryMap = new Map(EXPENSE_CATEGORIES.map((c) => [c.id, c]));
 

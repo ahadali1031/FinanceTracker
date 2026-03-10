@@ -24,21 +24,25 @@ interface AddActionSheetProps {
 }
 
 export function AddActionSheet({ visible, onClose }: AddActionSheetProps) {
-  const { colors, spacing, borderRadius, fontSize, fontWeight } = useTheme();
+  const { colors, spacing, borderRadius, fontSize, fontWeight, isDark, shadows } = useTheme();
   const router = useRouter();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(300)).current;
+  const itemAnims = useRef([0, 1, 2, 3, 4].map(() => new Animated.Value(0))).current;
 
   const actions: ActionItem[] = [
     { label: 'Add Expense', icon: 'wallet-outline', route: '/expense/add', color: colors.expense },
     { label: 'Add Income', icon: 'cash-outline', route: '/income/add', color: colors.income },
     { label: 'Add Subscription', icon: 'repeat-outline', route: '/subscription/add', color: colors.subscription },
-    { label: 'Update Savings', icon: 'business-outline', route: '/savings/', color: colors.savings },
+    { label: 'Update Savings', icon: 'shield-checkmark-outline', route: '/savings/', color: colors.savings },
     { label: 'Add Investment', icon: 'trending-up-outline', route: '/investment/add-transaction', color: colors.investment },
   ];
 
   useEffect(() => {
     if (visible) {
+      // Reset items
+      itemAnims.forEach((a) => a.setValue(0));
+
       Animated.parallel([
         Animated.timing(fadeAnim, {
           toValue: 1,
@@ -47,14 +51,25 @@ export function AddActionSheet({ visible, onClose }: AddActionSheetProps) {
         }),
         Animated.spring(slideAnim, {
           toValue: 0,
-          speed: 14,
-          bounciness: 4,
+          damping: 20,
+          stiffness: 180,
           useNativeDriver: true,
         }),
-      ]).start();
+      ]).start(() => {
+        // Stagger item entrance
+        Animated.stagger(50, itemAnims.map((anim) =>
+          Animated.spring(anim, {
+            toValue: 1,
+            damping: 15,
+            stiffness: 200,
+            useNativeDriver: true,
+          })
+        )).start();
+      });
     } else {
       fadeAnim.setValue(0);
       slideAnim.setValue(300);
+      itemAnims.forEach((a) => a.setValue(0));
     }
   }, [visible]);
 
@@ -93,10 +108,11 @@ export function AddActionSheet({ visible, onClose }: AddActionSheetProps) {
           styles.sheet,
           {
             backgroundColor: colors.surface,
-            borderTopLeftRadius: borderRadius.xl,
-            borderTopRightRadius: borderRadius.xl,
-            paddingBottom: 40,
+            borderTopLeftRadius: borderRadius.xxl,
+            borderTopRightRadius: borderRadius.xxl,
+            paddingBottom: 48,
             transform: [{ translateY: slideAnim }],
+            ...(isDark ? { borderWidth: 1, borderColor: colors.border, borderBottomWidth: 0 } : shadows.xl),
           },
         ]}
       >
@@ -124,36 +140,48 @@ export function AddActionSheet({ visible, onClose }: AddActionSheetProps) {
         {/* Action items */}
         <View style={[styles.actionsContainer, { paddingHorizontal: spacing.md }]}>
           {actions.map((action, index) => (
-            <Pressable
+            <Animated.View
               key={action.label}
-              style={({ pressed }) => [
-                styles.actionRow,
-                {
-                  backgroundColor: pressed ? colors.border + '40' : 'transparent',
-                  borderRadius: borderRadius.md,
-                  paddingVertical: spacing.md,
-                  paddingHorizontal: spacing.md,
-                },
-              ]}
-              onPress={() => handleAction(action.route)}
+              style={{
+                opacity: itemAnims[index],
+                transform: [{
+                  translateY: itemAnims[index].interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [20, 0],
+                  }),
+                }],
+              }}
             >
-              <View style={[styles.actionIcon, { backgroundColor: action.color + '15', borderRadius: borderRadius.md }]}>
-                <Ionicons name={action.icon as any} size={22} color={action.color} />
-              </View>
-              <Text
-                style={[
-                  styles.actionLabel,
+              <Pressable
+                style={({ pressed }) => [
+                  styles.actionRow,
                   {
-                    color: colors.text,
-                    fontSize: fontSize.md,
-                    fontWeight: fontWeight.medium,
+                    backgroundColor: pressed ? action.color + '0A' : 'transparent',
+                    borderRadius: borderRadius.md,
+                    paddingVertical: spacing.md,
+                    paddingHorizontal: spacing.md,
                   },
                 ]}
+                onPress={() => handleAction(action.route)}
               >
-                {action.label}
-              </Text>
-              <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
-            </Pressable>
+                <View style={[styles.actionIcon, { backgroundColor: action.color + '12', borderRadius: borderRadius.md }]}>
+                  <Ionicons name={action.icon as any} size={22} color={action.color} />
+                </View>
+                <Text
+                  style={[
+                    styles.actionLabel,
+                    {
+                      color: colors.text,
+                      fontSize: fontSize.md,
+                      fontWeight: fontWeight.medium,
+                    },
+                  ]}
+                >
+                  {action.label}
+                </Text>
+                <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
+              </Pressable>
+            </Animated.View>
           ))}
         </View>
 
@@ -162,7 +190,7 @@ export function AddActionSheet({ visible, onClose }: AddActionSheetProps) {
           style={({ pressed }) => [
             styles.cancelButton,
             {
-              backgroundColor: pressed ? colors.border + '40' : colors.background,
+              backgroundColor: pressed ? colors.border + '40' : colors.surfaceElevated,
               marginHorizontal: spacing.md,
               marginTop: spacing.md,
               borderRadius: borderRadius.md,
@@ -192,7 +220,7 @@ export function AddActionSheet({ visible, onClose }: AddActionSheetProps) {
 const styles = StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
   },
   overlayTouchable: {
     flex: 1,
@@ -208,7 +236,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   handle: {
-    width: 36,
+    width: 40,
     height: 4,
     borderRadius: 2,
   },
@@ -220,8 +248,8 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   actionIcon: {
-    width: 42,
-    height: 42,
+    width: 44,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
   },

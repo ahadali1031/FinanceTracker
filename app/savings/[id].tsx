@@ -20,24 +20,9 @@ import { useExpenseStore } from '@/src/stores/expenseStore';
 import { useSavingsStore } from '@/src/stores/savingsStore';
 import { formatCurrency } from '@/src/utils/currency';
 import { formatDate } from '@/src/utils/date';
-import { AmountInput, Button, CalendarPicker } from '@/src/components/ui';
+import { AmountInput, Button, CalendarPicker, FadeInView } from '@/src/components/ui';
 import type { SavingsSnapshot } from '@/src/types';
 import { useToastStore } from '@/src/stores/toastStore';
-
-function FadeInView({ delay = 0, children, style }: { delay?: number; children: React.ReactNode; style?: any }) {
-  const opacity = useRef(new Animated.Value(0)).current;
-  const translateY = useRef(new Animated.Value(14)).current;
-  useEffect(() => {
-    const t = setTimeout(() => {
-      Animated.parallel([
-        Animated.timing(opacity, { toValue: 1, duration: 350, useNativeDriver: true }),
-        Animated.timing(translateY, { toValue: 0, duration: 350, useNativeDriver: true }),
-      ]).start();
-    }, delay);
-    return () => clearTimeout(t);
-  }, []);
-  return <Animated.View style={[style, { opacity, transform: [{ translateY }] }]}>{children}</Animated.View>;
-}
 
 export default function SavingsAccountDetailScreen() {
   const { colors, spacing, borderRadius, fontSize, fontWeight } = useTheme();

@@ -12,34 +12,13 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@/constants/useTheme';
-import { Card, EmptyState } from '@/src/components/ui';
+import { Card, EmptyState, FadeInView } from '@/src/components/ui';
 import { useIncomeStore } from '@/src/stores/incomeStore';
 import { useAuthStore } from '@/src/stores/authStore';
 import { formatCurrency } from '@/src/utils/currency';
 import { formatDate, formatMonthYear } from '@/src/utils/date';
 import { Ionicons } from '@expo/vector-icons';
 import type { Income } from '@/src/types';
-
-function FadeInView({ delay = 0, children, style }: { delay?: number; children: React.ReactNode; style?: any }) {
-  const opacity = useRef(new Animated.Value(0)).current;
-  const translateY = useRef(new Animated.Value(14)).current;
-
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      Animated.parallel([
-        Animated.timing(opacity, { toValue: 1, duration: 400, useNativeDriver: true }),
-        Animated.timing(translateY, { toValue: 0, duration: 400, useNativeDriver: true }),
-      ]).start();
-    }, delay);
-    return () => clearTimeout(timeout);
-  }, []);
-
-  return (
-    <Animated.View style={[style, { opacity, transform: [{ translateY }] }]}>
-      {children}
-    </Animated.View>
-  );
-}
 
 function AnimatedIncomeRow({
   item,

@@ -16,23 +16,8 @@ import { useTheme } from '@/constants/useTheme';
 import { useAuthStore } from '@/src/stores/authStore';
 import { useSavingsStore } from '@/src/stores/savingsStore';
 import { formatCurrency } from '@/src/utils/currency';
-import { EmptyState } from '@/src/components/ui';
+import { EmptyState, FadeInView } from '@/src/components/ui';
 import type { SavingsAccount } from '@/src/types';
-
-function FadeInView({ delay = 0, children, style }: { delay?: number; children: React.ReactNode; style?: any }) {
-  const opacity = useRef(new Animated.Value(0)).current;
-  const translateY = useRef(new Animated.Value(14)).current;
-  useEffect(() => {
-    const t = setTimeout(() => {
-      Animated.parallel([
-        Animated.timing(opacity, { toValue: 1, duration: 350, useNativeDriver: true }),
-        Animated.timing(translateY, { toValue: 0, duration: 350, useNativeDriver: true }),
-      ]).start();
-    }, delay);
-    return () => clearTimeout(t);
-  }, []);
-  return <Animated.View style={[style, { opacity, transform: [{ translateY }] }]}>{children}</Animated.View>;
-}
 
 function AnimatedAccountRow({
   account,

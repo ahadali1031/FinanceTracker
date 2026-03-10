@@ -3,17 +3,18 @@ export const theme = {
     // Emerald Premium palette
     primary: '#10B981',              // Emerald-500 — cool, premium green
     primaryLight: '#34D399',         // Emerald-400 — dark mode primary
+    primaryDark: '#059669',          // Emerald-600 — deeper green
     primaryMuted: '#ECFDF5',         // Emerald-50 — light tint bg
     primaryMutedDark: '#052E1C',     // Deep forest — dark tint bg
     secondary: '#6366F1',            // Indigo accent for contrast
 
-    background: { light: '#F9FAFB', dark: '#030712' },       // Gray-50 / Gray-950
+    background: { light: '#F8FAFC', dark: '#030712' },       // Slate-50 / Gray-950
     surface: { light: '#FFFFFF', dark: '#111827' },           // White / Gray-900
-    surfaceElevated: { light: '#F3F4F6', dark: '#1F2937' },   // Gray-100 / Gray-800
-    text: { light: '#111827', dark: '#F9FAFB' },              // Gray-900 / Gray-50
-    textSecondary: { light: '#6B7280', dark: '#9CA3AF' },     // Gray-500 / Gray-400
-    textTertiary: { light: '#9CA3AF', dark: '#4B5563' },      // Gray-400 / Gray-600
-    border: { light: '#E5E7EB', dark: '#1F2937' },            // Gray-200 / Gray-800
+    surfaceElevated: { light: '#F1F5F9', dark: '#1F2937' },   // Slate-100 / Gray-800
+    text: { light: '#0F172A', dark: '#F8FAFC' },              // Slate-900 / Slate-50
+    textSecondary: { light: '#64748B', dark: '#94A3B8' },     // Slate-500 / Slate-400
+    textTertiary: { light: '#94A3B8', dark: '#475569' },      // Slate-400 / Slate-600
+    border: { light: '#E2E8F0', dark: '#1E293B' },            // Slate-200 / Slate-800
 
     // Semantic colors
     expense: '#F43F5E',              // Rose-500 — warmer, modern red
@@ -31,6 +32,43 @@ export const theme = {
       '#EC4899', '#14B8A6', '#F97316', '#6366F1', '#64748B',
     ],
   },
+  shadows: {
+    sm: {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.04,
+      shadowRadius: 4,
+      elevation: 1,
+    } as const,
+    md: {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.06,
+      shadowRadius: 12,
+      elevation: 3,
+    } as const,
+    lg: {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.08,
+      shadowRadius: 20,
+      elevation: 6,
+    } as const,
+    xl: {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.12,
+      shadowRadius: 28,
+      elevation: 10,
+    } as const,
+    colored: (color: string) => ({
+      shadowColor: color,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.25,
+      shadowRadius: 12,
+      elevation: 6,
+    }),
+  },
   spacing: {
     xs: 4,
     sm: 8,
@@ -43,6 +81,7 @@ export const theme = {
     md: 12,
     lg: 16,
     xl: 24,
+    xxl: 32,
     full: 9999,
   },
   fontSize: {

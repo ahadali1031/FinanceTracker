@@ -8,7 +8,7 @@ import {
   Pressable,
   KeyboardAvoidingView,
   Platform,
-  ActivityIndicator,
+  Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/constants/useTheme';
@@ -30,8 +30,48 @@ const SUGGESTIONS = [
   'How much do I spend on subscriptions?',
 ];
 
+function TypingIndicator({ colors }: { colors: any }) {
+  const dot1 = useRef(new Animated.Value(0.3)).current;
+  const dot2 = useRef(new Animated.Value(0.3)).current;
+  const dot3 = useRef(new Animated.Value(0.3)).current;
+
+  useEffect(() => {
+    const createAnim = (dot: Animated.Value, delay: number) =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.delay(delay),
+          Animated.timing(dot, { toValue: 1, duration: 300, useNativeDriver: true }),
+          Animated.timing(dot, { toValue: 0.3, duration: 300, useNativeDriver: true }),
+          Animated.delay(600 - delay),
+        ])
+      );
+
+    const a1 = createAnim(dot1, 0);
+    const a2 = createAnim(dot2, 200);
+    const a3 = createAnim(dot3, 400);
+    a1.start();
+    a2.start();
+    a3.start();
+    return () => { a1.stop(); a2.stop(); a3.stop(); };
+  }, []);
+
+  return (
+    <View style={[styles.typingContainer, { backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border }]}>
+      {[dot1, dot2, dot3].map((dot, i) => (
+        <Animated.View
+          key={i}
+          style={[
+            styles.typingDot,
+            { backgroundColor: colors.primary, opacity: dot },
+          ]}
+        />
+      ))}
+    </View>
+  );
+}
+
 export default function ChatScreen() {
-  const { colors, spacing, borderRadius, fontSize, fontWeight } = useTheme();
+  const { colors, spacing, borderRadius, fontSize, fontWeight, isDark, shadows } = useTheme();
 
   const user = useAuthStore((s) => s.user);
   const expenses = useExpenseStore((s) => s.expenses);
@@ -46,7 +86,6 @@ export default function ChatScreen() {
   const [loading, setLoading] = useState(false);
   const flatListRef = useRef<FlatList>(null);
 
-  // Build data context string from stores — aggregated, not raw
   const dataContext = useMemo(() => {
     const now = new Date();
     const curYear = now.getFullYear();
@@ -55,7 +94,6 @@ export default function ChatScreen() {
     const prevYear = prevDate.getFullYear();
     const prevMonth = prevDate.getMonth();
 
-    // Current & previous month expenses by category
     let curExpTotal = 0;
     let prevExpTotal = 0;
     let allTimeExp = 0;
@@ -78,7 +116,6 @@ export default function ChatScreen() {
       }
     }
 
-    // Income
     let curIncTotal = 0;
     let prevIncTotal = 0;
     let allTimeInc = 0;
@@ -89,7 +126,6 @@ export default function ChatScreen() {
       else if (d.getFullYear() === prevYear && d.getMonth() === prevMonth) prevIncTotal += i.amount;
     }
 
-    // Subscriptions
     let monthlySubTotal = 0;
     const subList: string[] = [];
     for (const s of subscriptions) {
@@ -99,7 +135,6 @@ export default function ChatScreen() {
       subList.push(`${s.name}: $${monthly.toFixed(0)}/mo`);
     }
 
-    // Budget
     const budgetLines: string[] = [];
     for (const t of budgetTargets) {
       let spent = 0;
@@ -112,7 +147,6 @@ export default function ChatScreen() {
       budgetLines.push(`${catName}: $${spent.toFixed(0)} / $${t.monthlyLimit.toFixed(0)}`);
     }
 
-    // Investments
     let investTotal = 0;
     const holdingsList: string[] = [];
     for (const acct of investmentAccounts) {
@@ -193,25 +227,28 @@ ${holdingsList.length > 0 ? `Investment holdings:\n${holdingsList.join('\n')}` :
         alignSelf: isUser ? 'flex-end' : 'flex-start',
         backgroundColor: isUser ? colors.primary : colors.surface,
         borderRadius: borderRadius.lg,
-        borderBottomRightRadius: isUser ? borderRadius.sm : borderRadius.lg,
-        borderBottomLeftRadius: isUser ? borderRadius.lg : borderRadius.sm,
-        maxWidth: '85%',
+        borderBottomRightRadius: isUser ? 4 : borderRadius.lg,
+        borderBottomLeftRadius: isUser ? borderRadius.lg : 4,
+        maxWidth: '82%',
         padding: spacing.md,
         marginBottom: spacing.sm,
         marginHorizontal: spacing.md,
-        borderWidth: isUser ? 0 : 1,
-        borderColor: colors.border,
+        ...(isUser
+          ? (isDark ? {} : shadows.colored(colors.primary))
+          : isDark
+            ? { borderWidth: 1, borderColor: colors.border }
+            : shadows.sm),
       }]}>
         <Text style={{
           color: isUser ? '#fff' : colors.text,
           fontSize: fontSize.sm,
-          lineHeight: 20,
+          lineHeight: 21,
         }}>
           {item.text}
         </Text>
       </View>
     );
-  }, [colors, spacing, borderRadius, fontSize]);
+  }, [colors, spacing, borderRadius, fontSize, isDark, shadows]);
 
   return (
     <KeyboardAvoidingView
@@ -227,12 +264,14 @@ ${holdingsList.length > 0 ? `Investment holdings:\n${holdingsList.join('\n')}` :
         contentContainerStyle={{ paddingTop: spacing.md, paddingBottom: spacing.sm, flexGrow: 1 }}
         ListEmptyComponent={
           <View style={[styles.emptyState, { padding: spacing.lg }]}>
-            <Ionicons name="chatbubbles-outline" size={48} color={colors.textTertiary} />
-            <Text style={{ color: colors.text, fontSize: fontSize.lg, fontWeight: fontWeight.semibold, marginTop: spacing.md }}>
+            <View style={[styles.emptyIconBg, { backgroundColor: colors.primary + '10', borderRadius: borderRadius.full }]}>
+              <Ionicons name="chatbubbles-outline" size={40} color={colors.primary + '60'} />
+            </View>
+            <Text style={{ color: colors.text, fontSize: fontSize.lg, fontWeight: fontWeight.bold, marginTop: spacing.md }}>
               Ask me anything
             </Text>
-            <Text style={{ color: colors.textSecondary, fontSize: fontSize.sm, textAlign: 'center', marginTop: spacing.xs }}>
-              I can answer questions about your spending, income, budget, and more.
+            <Text style={{ color: colors.textSecondary, fontSize: fontSize.sm, textAlign: 'center', marginTop: spacing.xs, lineHeight: 20 }}>
+              I can answer questions about your spending,{'\n'}income, budget, and more.
             </Text>
             <View style={{ marginTop: spacing.lg, width: '100%' }}>
               {SUGGESTIONS.map((s, i) => (
@@ -240,16 +279,17 @@ ${holdingsList.length > 0 ? `Investment holdings:\n${holdingsList.join('\n')}` :
                   key={i}
                   onPress={() => sendMessage(s)}
                   style={({ pressed }) => [styles.suggestion, {
-                    backgroundColor: pressed ? colors.primary + '15' : colors.surface,
+                    backgroundColor: pressed ? colors.primary + '10' : colors.surface,
                     borderRadius: borderRadius.md,
                     borderWidth: 1,
-                    borderColor: colors.border,
-                    padding: spacing.sm,
+                    borderColor: pressed ? colors.primary + '30' : colors.border,
+                    padding: spacing.sm + 2,
                     paddingHorizontal: spacing.md,
-                    marginBottom: spacing.xs,
+                    marginBottom: spacing.sm - 2,
                   }]}
                 >
-                  <Text style={{ color: colors.primary, fontSize: fontSize.sm }}>{s}</Text>
+                  <Ionicons name="chatbubble-outline" size={14} color={colors.primary} style={{ marginRight: spacing.sm }} />
+                  <Text style={{ color: colors.text, fontSize: fontSize.sm, flex: 1 }}>{s}</Text>
                 </Pressable>
               ))}
             </View>
@@ -258,11 +298,10 @@ ${holdingsList.length > 0 ? `Investment holdings:\n${holdingsList.join('\n')}` :
         showsVerticalScrollIndicator={false}
       />
 
-      {/* Loading indicator */}
+      {/* Typing indicator */}
       {loading && (
-        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.lg, paddingBottom: spacing.xs, gap: spacing.sm }}>
-          <ActivityIndicator size="small" color={colors.primary} />
-          <Text style={{ color: colors.textTertiary, fontSize: fontSize.xs }}>Thinking...</Text>
+        <View style={{ paddingHorizontal: spacing.md, paddingBottom: spacing.xs }}>
+          <TypingIndicator colors={colors} />
         </View>
       )}
 
@@ -283,7 +322,7 @@ ${holdingsList.length > 0 ? `Investment holdings:\n${holdingsList.join('\n')}` :
             flex: 1,
             color: colors.text,
             fontSize: fontSize.sm,
-            paddingVertical: spacing.sm,
+            paddingVertical: spacing.sm + 2,
             paddingHorizontal: spacing.md,
             backgroundColor: colors.background,
             borderRadius: borderRadius.full,
@@ -301,11 +340,13 @@ ${holdingsList.length > 0 ? `Investment holdings:\n${holdingsList.join('\n')}` :
           disabled={!input.trim() || loading}
           style={({ pressed }) => [{
             marginLeft: spacing.sm,
-            opacity: (!input.trim() || loading) ? 0.4 : pressed ? 0.6 : 1,
+            opacity: (!input.trim() || loading) ? 0.3 : pressed ? 0.6 : 1,
           }]}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
-          <Ionicons name="arrow-up-circle" size={32} color={colors.primary} />
+          <View style={[styles.sendButton, { backgroundColor: colors.primary, borderRadius: borderRadius.full }]}>
+            <Ionicons name="arrow-up" size={18} color="#fff" />
+          </View>
         </Pressable>
       </View>
     </KeyboardAvoidingView>
@@ -315,7 +356,24 @@ ${holdingsList.length > 0 ? `Investment holdings:\n${holdingsList.join('\n')}` :
 const styles = StyleSheet.create({
   container: { flex: 1 },
   emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  suggestion: {},
+  emptyIconBg: { width: 80, height: 80, alignItems: 'center', justifyContent: 'center' },
+  suggestion: { flexDirection: 'row', alignItems: 'center' },
   messageBubble: {},
   inputBar: { flexDirection: 'row', alignItems: 'center' },
+  sendButton: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center' },
+  typingContainer: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    gap: 4,
+    marginLeft: 16,
+    marginBottom: 4,
+  },
+  typingDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+  },
 });

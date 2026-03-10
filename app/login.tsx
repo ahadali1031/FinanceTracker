@@ -45,15 +45,17 @@ function AnimatedPressable({
     Animated.spring(scale, {
       toValue: 0.96,
       useNativeDriver: true,
+      damping: 15,
+      stiffness: 200,
     }).start();
   };
 
   const onPressOut = () => {
     Animated.spring(scale, {
       toValue: 1,
-      friction: 3,
-      tension: 100,
       useNativeDriver: true,
+      damping: 10,
+      stiffness: 180,
     }).start();
   };
 
@@ -83,12 +85,17 @@ function getFriendlyAuthError(error: any): string | null {
 }
 
 export default function LoginScreen() {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
-  const iconScale = useRef(new Animated.Value(0.5)).current;
+  const iconScale = useRef(new Animated.Value(0.3)).current;
+  const iconRotate = useRef(new Animated.Value(0)).current;
   const buttonFade = useRef(new Animated.Value(0)).current;
   const buttonSlide = useRef(new Animated.Value(40)).current;
+  // Decorative circles
+  const circle1 = useRef(new Animated.Value(0)).current;
+  const circle2 = useRef(new Animated.Value(0)).current;
+  const circle3 = useRef(new Animated.Value(0)).current;
   const [signingIn, setSigningIn] = useState(false);
 
   const [request, response, promptAsync] = Google.useAuthRequest({
@@ -97,11 +104,25 @@ export default function LoginScreen() {
   });
 
   useEffect(() => {
+    // Animate decorative circles first
+    Animated.stagger(150, [
+      Animated.spring(circle1, { toValue: 1, useNativeDriver: true, damping: 20, stiffness: 80 }),
+      Animated.spring(circle2, { toValue: 1, useNativeDriver: true, damping: 20, stiffness: 80 }),
+      Animated.spring(circle3, { toValue: 1, useNativeDriver: true, damping: 20, stiffness: 80 }),
+    ]).start();
+
+    // Main content
     Animated.sequence([
       Animated.parallel([
-        Animated.timing(iconScale, {
+        Animated.spring(iconScale, {
           toValue: 1,
-          duration: 600,
+          useNativeDriver: true,
+          damping: 10,
+          stiffness: 100,
+        }),
+        Animated.timing(iconRotate, {
+          toValue: 1,
+          duration: 800,
           useNativeDriver: true,
         }),
         Animated.timing(fadeAnim, {
@@ -111,22 +132,24 @@ export default function LoginScreen() {
         }),
       ]),
       Animated.parallel([
-        Animated.timing(slideAnim, {
+        Animated.spring(slideAnim, {
           toValue: 0,
-          duration: 500,
           useNativeDriver: true,
+          damping: 20,
+          stiffness: 180,
         }),
       ]),
       Animated.parallel([
         Animated.timing(buttonFade, {
           toValue: 1,
-          duration: 500,
+          duration: 400,
           useNativeDriver: true,
         }),
-        Animated.timing(buttonSlide, {
+        Animated.spring(buttonSlide, {
           toValue: 0,
-          duration: 500,
           useNativeDriver: true,
+          damping: 20,
+          stiffness: 180,
         }),
       ]),
     ]).start();
@@ -155,14 +178,12 @@ export default function LoginScreen() {
       setSigningIn(true);
       try {
         const provider = new GoogleAuthProvider();
-        // If currently anonymous, link the account to preserve data
         if (auth.currentUser?.isAnonymous) {
           await linkWithPopup(auth.currentUser, provider);
         } else {
           await signInWithPopup(auth, provider);
         }
       } catch (error: any) {
-        // If linking fails because credential is already in use, sign in normally
         if (error?.code === 'auth/credential-already-in-use') {
           try {
             const provider = new GoogleAuthProvider();
@@ -196,30 +217,36 @@ export default function LoginScreen() {
     }
   };
 
+  const spin = iconRotate.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
+
   const dynamicStyles = StyleSheet.create({
     container: {
       flex: 1,
       backgroundColor: colors.background,
       alignItems: 'center',
       paddingHorizontal: 32,
+      overflow: 'hidden',
     },
     title: {
-      fontSize: 36,
+      fontSize: 34,
       fontWeight: '800',
       color: colors.text,
-      letterSpacing: 0.5,
+      letterSpacing: -0.5,
       marginBottom: 10,
     },
     subtitle: {
       fontSize: 16,
       color: colors.textTertiary,
       fontWeight: '400',
-      letterSpacing: 0.2,
+      letterSpacing: 0.1,
     },
     guestButton: {
       backgroundColor: 'transparent',
       paddingVertical: 16,
-      borderRadius: 14,
+      borderRadius: 16,
       alignItems: 'center',
       borderWidth: 1.5,
       borderColor: colors.border,
@@ -234,12 +261,48 @@ export default function LoginScreen() {
       color: colors.textTertiary,
       fontSize: 12,
       textAlign: 'center',
-      marginTop: 8,
+      marginTop: 12,
+      lineHeight: 18,
     },
   });
 
   return (
     <SafeAreaView style={dynamicStyles.container}>
+      {/* Decorative background circles */}
+      <Animated.View
+        style={[
+          styles.decorCircle,
+          styles.decorCircle1,
+          {
+            backgroundColor: colors.primary + '08',
+            opacity: circle1,
+            transform: [{ scale: circle1 }],
+          },
+        ]}
+      />
+      <Animated.View
+        style={[
+          styles.decorCircle,
+          styles.decorCircle2,
+          {
+            backgroundColor: colors.primary + '06',
+            opacity: circle2,
+            transform: [{ scale: circle2 }],
+          },
+        ]}
+      />
+      <Animated.View
+        style={[
+          styles.decorCircle,
+          styles.decorCircle3,
+          {
+            backgroundColor: colors.primary + '04',
+            opacity: circle3,
+            transform: [{ scale: circle3 }],
+          },
+        ]}
+      />
+
       <View style={styles.topSpacer} />
 
       {/* Decorative icon */}
@@ -247,12 +310,13 @@ export default function LoginScreen() {
         style={[
           styles.iconContainer,
           {
+            backgroundColor: colors.primary + '12',
             opacity: fadeAnim,
-            transform: [{ scale: iconScale }],
+            transform: [{ scale: iconScale }, { rotate: spin }],
           },
         ]}
       >
-        <Ionicons name="analytics" size={80} color={colors.income} />
+        <Ionicons name="analytics" size={48} color={colors.primary} />
       </Animated.View>
 
       {/* Title and subtitle */}
@@ -281,13 +345,13 @@ export default function LoginScreen() {
           },
         ]}
       >
-        <AnimatedPressable onPress={handleGoogleSignIn} style={styles.googleButton} disabled={signingIn}>
+        <AnimatedPressable onPress={handleGoogleSignIn} style={[styles.googleButton, isDark && styles.googleButtonDark]} disabled={signingIn}>
           {signingIn ? (
-            <ActivityIndicator color="#0A1F15" />
+            <ActivityIndicator color={isDark ? '#fff' : '#0A1F15'} />
           ) : (
             <View style={styles.googleButtonContent}>
-              <Ionicons name="logo-google" size={20} color="#0A1F15" style={{ marginRight: 10 }} />
-              <Text style={styles.googleButtonText}>Sign in with Google</Text>
+              <Ionicons name="logo-google" size={20} color={isDark ? '#fff' : '#0A1F15'} style={{ marginRight: 10 }} />
+              <Text style={[styles.googleButtonText, isDark && { color: '#fff' }]}>Sign in with Google</Text>
             </View>
           )}
         </AnimatedPressable>
@@ -310,7 +374,12 @@ const styles = StyleSheet.create({
     flex: 1.2,
   },
   iconContainer: {
-    marginBottom: 24,
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 28,
   },
   header: {
     alignItems: 'center',
@@ -325,15 +394,22 @@ const styles = StyleSheet.create({
   googleButton: {
     backgroundColor: '#FFFFFF',
     paddingVertical: 16,
-    borderRadius: 14,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 54,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
     elevation: 6,
+  },
+  googleButtonDark: {
+    backgroundColor: '#1F2937',
+    borderWidth: 1,
+    borderColor: '#374151',
+    shadowOpacity: 0,
+    elevation: 0,
   },
   googleButtonContent: {
     flexDirection: 'row',
@@ -347,5 +423,28 @@ const styles = StyleSheet.create({
   },
   bottomSpacer: {
     height: 60,
+  },
+  // Decorative circles
+  decorCircle: {
+    position: 'absolute',
+    borderRadius: 9999,
+  },
+  decorCircle1: {
+    width: 300,
+    height: 300,
+    top: -80,
+    right: -100,
+  },
+  decorCircle2: {
+    width: 200,
+    height: 200,
+    top: 120,
+    left: -60,
+  },
+  decorCircle3: {
+    width: 250,
+    height: 250,
+    bottom: 80,
+    right: -80,
   },
 });

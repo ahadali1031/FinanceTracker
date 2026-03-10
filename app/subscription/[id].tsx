@@ -16,7 +16,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Timestamp } from 'firebase/firestore';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/constants/useTheme';
-import { AmountInput, Button, Input, CategoryPicker, CalendarPicker } from '@/src/components/ui';
+import { AmountInput, Button, Input, CategoryPicker, CalendarPicker, FadeInView } from '@/src/components/ui';
 import { useSubscriptionStore } from '@/src/stores/subscriptionStore';
 import { useAuthStore } from '@/src/stores/authStore';
 import { SUBSCRIPTION_CATEGORIES } from '@/src/utils/categories';
@@ -31,21 +31,6 @@ function computeNextBillingDate(startDate: Date, frequency: 'monthly' | 'yearly'
     else next.setFullYear(next.getFullYear() + 1);
   }
   return next;
-}
-
-function FadeInView({ delay = 0, children, style }: { delay?: number; children: React.ReactNode; style?: any }) {
-  const opacity = useRef(new Animated.Value(0)).current;
-  const translateY = useRef(new Animated.Value(14)).current;
-  useEffect(() => {
-    const t = setTimeout(() => {
-      Animated.parallel([
-        Animated.timing(opacity, { toValue: 1, duration: 350, useNativeDriver: true }),
-        Animated.timing(translateY, { toValue: 0, duration: 350, useNativeDriver: true }),
-      ]).start();
-    }, delay);
-    return () => clearTimeout(t);
-  }, []);
-  return <Animated.View style={[style, { opacity, transform: [{ translateY }] }]}>{children}</Animated.View>;
 }
 
 export default function SubscriptionDetailScreen() {

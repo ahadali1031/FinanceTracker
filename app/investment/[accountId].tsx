@@ -14,7 +14,7 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/constants/useTheme';
-import { Card, EmptyState } from '@/src/components/ui';
+import { Card, EmptyState, FadeInView } from '@/src/components/ui';
 import { useInvestmentStore } from '@/src/stores/investmentStore';
 import { useAuthStore } from '@/src/stores/authStore';
 import { useQuotes } from '@/src/hooks/useQuotes';
@@ -25,27 +25,6 @@ import type { Holding, InvestmentTransaction } from '@/src/types';
 import type { StockQuote } from '@/src/lib/stock-api';
 
 const accountTypeMap = new Map(INVESTMENT_ACCOUNT_TYPES.map((t) => [t.id, t.name]));
-
-function FadeInView({ delay = 0, children, style }: { delay?: number; children: React.ReactNode; style?: any }) {
-  const opacity = useRef(new Animated.Value(0)).current;
-  const translateY = useRef(new Animated.Value(14)).current;
-
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      Animated.parallel([
-        Animated.timing(opacity, { toValue: 1, duration: 400, useNativeDriver: true }),
-        Animated.timing(translateY, { toValue: 0, duration: 400, useNativeDriver: true }),
-      ]).start();
-    }, delay);
-    return () => clearTimeout(timeout);
-  }, []);
-
-  return (
-    <Animated.View style={[style, { opacity, transform: [{ translateY }] }]}>
-      {children}
-    </Animated.View>
-  );
-}
 
 function getTransactionTypeConfig(colors: any): Record<string, { icon: string; color: string; prefix: string }> {
   return {

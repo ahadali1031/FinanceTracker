@@ -23,12 +23,69 @@ WebBrowser.maybeCompleteAuthSession();
 
 const GOOGLE_WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID!;
 
+function SettingsRow({
+  icon,
+  iconColor,
+  label,
+  subtitle,
+  onPress,
+  colors,
+  fontSize,
+  fontWeight,
+  borderRadius,
+  spacing,
+  isDark,
+  shadows,
+  isLast,
+  disabled,
+  rightElement,
+}: any) {
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  return (
+    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+      <TouchableOpacity
+        activeOpacity={0.7}
+        onPress={onPress}
+        disabled={disabled}
+        onPressIn={() => {
+          Animated.spring(scaleAnim, { toValue: 0.98, useNativeDriver: true, damping: 15, stiffness: 200 }).start();
+        }}
+        onPressOut={() => {
+          Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, damping: 12, stiffness: 180 }).start();
+        }}
+        style={[
+          styles.settingsRow,
+          {
+            backgroundColor: colors.surface,
+            paddingVertical: spacing.md,
+            paddingHorizontal: spacing.md,
+            ...(isLast ? {} : { borderBottomWidth: 1, borderBottomColor: colors.border + '40' }),
+          },
+        ]}
+      >
+        <View style={[styles.settingsIconBg, { backgroundColor: (iconColor || colors.primary) + '12', borderRadius: borderRadius.md }]}>
+          <Ionicons name={icon} size={18} color={iconColor || colors.primary} />
+        </View>
+        <View style={styles.settingsRowText}>
+          <Text style={{ color: colors.text, fontSize: fontSize.md, fontWeight: fontWeight.medium }}>{label}</Text>
+          {subtitle && (
+            <Text style={{ color: colors.textTertiary, fontSize: fontSize.xs, marginTop: 2 }}>{subtitle}</Text>
+          )}
+        </View>
+        {rightElement || <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />}
+      </TouchableOpacity>
+    </Animated.View>
+  );
+}
+
 export default function SettingsScreen() {
   const { user, signOut } = useAuthStore();
-  const { colors, spacing, borderRadius, fontSize, fontWeight } = useTheme();
+  const { colors, spacing, borderRadius, fontSize, fontWeight, isDark, shadows } = useTheme();
   const router = useRouter();
   const showToast = useToastStore((s) => s.showToast);
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(20)).current;
   const [linking, setLinking] = useState(false);
 
   const [request, response, promptAsync] = Google.useAuthRequest({
@@ -37,11 +94,10 @@ export default function SettingsScreen() {
   });
 
   useEffect(() => {
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 400,
-      useNativeDriver: true,
-    }).start();
+    Animated.parallel([
+      Animated.timing(fadeAnim, { toValue: 1, duration: 500, useNativeDriver: true }),
+      Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, damping: 20, stiffness: 180 }),
+    ]).start();
   }, []);
 
   // Handle Google link response (native)
@@ -96,80 +152,117 @@ export default function SettingsScreen() {
     }
   };
 
+  const initials = user?.displayName
+    ? user.displayName.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)
+    : user?.isAnonymous ? 'G' : '?';
+
+  const themeProps = { colors, fontSize, fontWeight, borderRadius, spacing, isDark, shadows };
+
   return (
     <ScrollView
       style={[styles.container, { backgroundColor: colors.background }]}
       contentContainerStyle={styles.contentContainer}
     >
-      <Animated.View style={{ opacity: fadeAnim, alignItems: 'center' }}>
-        {/* Profile row */}
-        <View style={[styles.profileRow, { backgroundColor: colors.surface, borderRadius: borderRadius.lg, borderWidth: 1, borderColor: colors.border, paddingVertical: spacing.md, paddingHorizontal: spacing.xl, marginBottom: spacing.lg }]}>
+      <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
+        {/* Profile section */}
+        <View style={[styles.profileSection, { marginBottom: spacing.lg }]}>
+          <View
+            style={[
+              styles.avatar,
+              {
+                backgroundColor: colors.primary + '18',
+                borderRadius: borderRadius.full,
+              },
+            ]}
+          >
+            <Text style={[styles.avatarText, { color: colors.primary, fontWeight: fontWeight.bold, fontSize: fontSize.xxl }]}>
+              {initials}
+            </Text>
+          </View>
           <Text style={[styles.displayName, { color: colors.text, fontSize: fontSize.xl, fontWeight: fontWeight.bold }]}>
             {user?.displayName ?? 'Guest User'}
           </Text>
-          <Text style={[styles.email, { color: colors.textSecondary, fontSize: fontSize.sm }]}>
+          <Text style={{ color: colors.textSecondary, fontSize: fontSize.sm }}>
             {user?.email || (user?.isAnonymous ? 'Signed in as guest' : 'No email')}
           </Text>
         </View>
 
-        {/* Link Google Account — only for anonymous users */}
-        {user?.isAnonymous && (
-          <TouchableOpacity
-            activeOpacity={0.6}
-            onPress={handleLinkGoogle}
-            disabled={linking}
-            style={[styles.settingsRow, { backgroundColor: colors.primary + '12', borderRadius: borderRadius.lg, borderWidth: 1, borderColor: colors.primary + '30', paddingVertical: spacing.md, paddingHorizontal: spacing.lg, marginBottom: spacing.md }]}
-          >
-            <View style={styles.settingsRowContent}>
-              <Ionicons name="logo-google" size={20} color={colors.primary} style={{ marginRight: 12 }} />
-              <View style={{ flex: 1 }}>
-                <Text style={{ color: colors.text, fontSize: fontSize.md, fontWeight: fontWeight.semibold }}>
-                  Link Google Account
-                </Text>
-                <Text style={{ color: colors.textSecondary, fontSize: fontSize.xs, marginTop: 2 }}>
-                  Keep your data permanently
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color={colors.primary} />
-            </View>
-          </TouchableOpacity>
-        )}
-
-        {/* Manage Budgets */}
-        <TouchableOpacity
-          activeOpacity={0.6}
-          onPress={() => router.push('/budget/' as any)}
-          style={[styles.settingsRow, { backgroundColor: colors.surface, borderRadius: borderRadius.lg, borderWidth: 1, borderColor: colors.border, paddingVertical: spacing.md, paddingHorizontal: spacing.lg, marginBottom: spacing.md }]}
-        >
-          <View style={styles.settingsRowContent}>
-            <Ionicons name="wallet-outline" size={20} color={colors.primary} style={{ marginRight: 12 }} />
-            <Text style={{ color: colors.text, fontSize: fontSize.md, fontWeight: fontWeight.semibold, flex: 1 }}>
-              Manage Budgets
-            </Text>
-            <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
-          </View>
-        </TouchableOpacity>
-
-        {/* Sign Out */}
-        <TouchableOpacity
-          activeOpacity={0.6}
-          onPress={handleSignOut}
-          style={[styles.signOutButton, { backgroundColor: colors.surface, borderRadius: borderRadius.lg, borderWidth: 1, borderColor: colors.border, paddingVertical: spacing.md, paddingHorizontal: spacing.lg, marginBottom: spacing.xl }]}
-        >
-          <Text style={{ color: colors.danger, fontSize: fontSize.md, fontWeight: fontWeight.semibold }}>
-            Sign Out
-          </Text>
-        </TouchableOpacity>
-
         {/* Guest warning */}
         {user?.isAnonymous && (
-          <View style={[styles.guestWarning, { backgroundColor: colors.warning + '15', borderRadius: borderRadius.md, padding: spacing.md, marginBottom: spacing.lg }]}>
+          <View style={[styles.guestWarning, { backgroundColor: colors.warning + '10', borderRadius: borderRadius.lg, padding: spacing.md, marginBottom: spacing.md, borderWidth: 1, borderColor: colors.warning + '20' }]}>
             <Ionicons name="warning" size={18} color={colors.warning} style={{ marginRight: spacing.sm }} />
-            <Text style={{ color: colors.warning, fontSize: fontSize.sm, flex: 1 }}>
+            <Text style={{ color: colors.warning, fontSize: fontSize.sm, flex: 1, lineHeight: 20 }}>
               You're signed in as a guest. Your data will be lost if you sign out. Link a Google account to keep it.
             </Text>
           </View>
         )}
+
+        {/* Settings card */}
+        <View style={[
+          styles.settingsCard,
+          {
+            backgroundColor: colors.surface,
+            borderRadius: borderRadius.lg,
+            overflow: 'hidden',
+            marginBottom: spacing.md,
+            ...(isDark ? { borderWidth: 1, borderColor: colors.border } : shadows.md),
+          },
+        ]}>
+          {/* Link Google Account */}
+          {user?.isAnonymous && (
+            <SettingsRow
+              icon="logo-google"
+              iconColor={colors.primary}
+              label="Link Google Account"
+              subtitle="Keep your data permanently"
+              onPress={handleLinkGoogle}
+              disabled={linking}
+              {...themeProps}
+            />
+          )}
+
+          {/* Manage Budgets */}
+          <SettingsRow
+            icon="wallet-outline"
+            label="Manage Budgets"
+            subtitle="Set spending limits"
+            onPress={() => router.push('/budget/' as any)}
+            {...themeProps}
+          />
+
+          {/* Manage Savings */}
+          <SettingsRow
+            icon="shield-checkmark-outline"
+            iconColor={colors.savings}
+            label="Savings Accounts"
+            subtitle="Track your savings goals"
+            onPress={() => router.push('/savings/' as any)}
+            isLast
+            {...themeProps}
+          />
+        </View>
+
+        {/* Danger zone */}
+        <View style={[
+          styles.settingsCard,
+          {
+            backgroundColor: colors.surface,
+            borderRadius: borderRadius.lg,
+            overflow: 'hidden',
+            marginBottom: spacing.xl,
+            ...(isDark ? { borderWidth: 1, borderColor: colors.border } : shadows.md),
+          },
+        ]}>
+          <SettingsRow
+            icon="log-out-outline"
+            iconColor={colors.danger}
+            label="Sign Out"
+            onPress={handleSignOut}
+            isLast
+            rightElement={null}
+            {...themeProps}
+          />
+        </View>
 
         {/* Footer */}
         <Text style={[styles.footer, { color: colors.textTertiary, fontSize: fontSize.xs }]}>
@@ -186,25 +279,38 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     paddingHorizontal: 20,
-    paddingBottom: 100,
-    flexGrow: 1,
-    justifyContent: 'center',
+    paddingBottom: 120,
+    paddingTop: 20,
   },
-  profileRow: {
+  profileSection: {
     alignItems: 'center',
   },
+  avatar: {
+    width: 72,
+    height: 72,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  avatarText: {},
   displayName: {
-    marginBottom: 2,
+    marginBottom: 4,
     textAlign: 'center',
   },
-  email: {},
-  signOutButton: {
-    alignItems: 'center',
-  },
-  settingsRow: {},
-  settingsRowContent: {
+  settingsCard: {},
+  settingsRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 12,
+  },
+  settingsIconBg: {
+    width: 34,
+    height: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  settingsRowText: {
+    flex: 1,
   },
   guestWarning: {
     flexDirection: 'row',

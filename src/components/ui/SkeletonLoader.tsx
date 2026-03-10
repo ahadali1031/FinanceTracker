@@ -11,13 +11,13 @@ interface SkeletonLoaderProps {
 
 export function SkeletonLoader({ width = '100%', height = 16, borderRadius = 8, style }: SkeletonLoaderProps) {
   const { colors } = useTheme();
-  const opacity = useRef(new Animated.Value(0.3)).current;
+  const opacity = useRef(new Animated.Value(0.25)).current;
 
   useEffect(() => {
     const anim = Animated.loop(
       Animated.sequence([
-        Animated.timing(opacity, { toValue: 0.7, duration: 800, useNativeDriver: true }),
-        Animated.timing(opacity, { toValue: 0.3, duration: 800, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 0.6, duration: 900, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 0.25, duration: 900, useNativeDriver: true }),
       ])
     );
     anim.start();
@@ -36,9 +36,15 @@ export function SkeletonLoader({ width = '100%', height = 16, borderRadius = 8, 
 
 // Pre-built skeleton layouts
 export function CardSkeleton() {
-  const { colors, spacing, borderRadius } = useTheme();
+  const { colors, spacing, borderRadius, isDark, shadows } = useTheme();
   return (
-    <View style={{ backgroundColor: colors.surface, borderRadius: borderRadius.lg, padding: spacing.md, marginBottom: spacing.sm }}>
+    <View style={[{
+      backgroundColor: colors.surface,
+      borderRadius: borderRadius.lg,
+      padding: spacing.md,
+      marginBottom: spacing.sm,
+      ...(isDark ? { borderWidth: 1, borderColor: colors.border } : shadows.sm),
+    }]}>
       <SkeletonLoader width="40%" height={12} style={{ marginBottom: spacing.sm }} />
       <SkeletonLoader width="60%" height={24} style={{ marginBottom: spacing.xs }} />
       <SkeletonLoader width="30%" height={12} />
@@ -47,10 +53,18 @@ export function CardSkeleton() {
 }
 
 export function ListItemSkeleton() {
-  const { colors, spacing, borderRadius } = useTheme();
+  const { colors, spacing, borderRadius, isDark, shadows } = useTheme();
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderRadius: borderRadius.md, padding: spacing.md, marginBottom: spacing.sm }}>
-      <SkeletonLoader width={40} height={40} borderRadius={20} style={{ marginRight: spacing.md }} />
+    <View style={[{
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.surface,
+      borderRadius: borderRadius.lg,
+      padding: spacing.md,
+      marginBottom: spacing.sm,
+      ...(isDark ? { borderWidth: 1, borderColor: colors.border } : shadows.sm),
+    }]}>
+      <SkeletonLoader width={40} height={40} borderRadius={12} style={{ marginRight: spacing.md }} />
       <View style={{ flex: 1 }}>
         <SkeletonLoader width="70%" height={14} style={{ marginBottom: spacing.xs }} />
         <SkeletonLoader width="40%" height={12} />

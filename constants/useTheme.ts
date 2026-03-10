@@ -8,6 +8,7 @@ export function useTheme() {
     isDark,
     colors: {
       primary: isDark ? theme.colors.primaryLight : theme.colors.primary,
+      primaryDark: theme.colors.primaryDark,
       background: isDark ? theme.colors.background.dark : theme.colors.background.light,
       surface: isDark ? theme.colors.surface.dark : theme.colors.surface.light,
       surfaceElevated: isDark ? theme.colors.surfaceElevated.dark : theme.colors.surfaceElevated.light,
@@ -24,6 +25,13 @@ export function useTheme() {
       danger: theme.colors.danger,
       warning: theme.colors.warning,
       success: theme.colors.success,
+    },
+    shadows: {
+      sm: isDark ? {} : theme.shadows.sm,
+      md: isDark ? {} : theme.shadows.md,
+      lg: isDark ? {} : theme.shadows.lg,
+      xl: isDark ? {} : theme.shadows.xl,
+      colored: (color: string) => isDark ? {} : theme.shadows.colored(color),
     },
     spacing: theme.spacing,
     borderRadius: theme.borderRadius,
