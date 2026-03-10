@@ -507,7 +507,7 @@ export default function AddTransactionScreen() {
         {(txType === 'buy' || txType === 'sell') && (
           <FadeInView delay={350}>
             <View style={[styles.switchRow, { backgroundColor: colors.surface, borderRadius: borderRadius.md, borderWidth: 1, borderColor: colors.border, padding: spacing.md, marginBottom: spacing.md }]}>
-              <View style={{ flex: 1 }}>
+              <View style={{ flex: 1, marginRight: 12 }}>
                 <Text style={{ color: colors.text, fontSize: fontSize.md, fontWeight: fontWeight.medium }}>
                   {txType === 'buy' ? 'Transfer from Checking' : 'Transfer to Checking'}
                 </Text>

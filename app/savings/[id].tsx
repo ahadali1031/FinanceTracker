@@ -179,7 +179,7 @@ export default function SavingsAccountDetailScreen() {
               )}
             </View>
             <View style={[styles.switchRow, { backgroundColor: colors.background, borderRadius: borderRadius.md, borderWidth: 1, borderColor: colors.border, padding: spacing.md, marginTop: spacing.md }]}>
-              <View style={{ flex: 1 }}>
+              <View style={{ flex: 1, marginRight: 12 }}>
                 <Text style={{ color: colors.text, fontSize: fontSize.md, fontWeight: fontWeight.medium }}>Transfer from Checking</Text>
                 <Text style={{ color: colors.textSecondary, fontSize: fontSize.xs, marginTop: 2 }}>Deducts the deposit amount from checking</Text>
               </View>

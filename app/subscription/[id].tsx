@@ -16,7 +16,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Timestamp } from 'firebase/firestore';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/constants/useTheme';
-import { AmountInput, Button, Input, CategoryPicker } from '@/src/components/ui';
+import { AmountInput, Button, Input, CategoryPicker, CalendarPicker } from '@/src/components/ui';
 import { useSubscriptionStore } from '@/src/stores/subscriptionStore';
 import { useAuthStore } from '@/src/stores/authStore';
 import { SUBSCRIPTION_CATEGORIES } from '@/src/utils/categories';
@@ -125,9 +125,6 @@ export default function SubscriptionDetailScreen() {
     }
   };
 
-  const dateToStr = (d: Date) =>
-    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-
   if (!sub) {
     return (
       <View style={[styles.center, { backgroundColor: colors.background }]}>
@@ -215,18 +212,18 @@ export default function SubscriptionDetailScreen() {
         <FadeInView delay={380}>
         <View style={[styles.fieldSection, { marginBottom: spacing.md }]}>
           <Text style={[styles.fieldLabel, { color: colors.text, fontSize: fontSize.sm, fontWeight: fontWeight.semibold, marginBottom: spacing.sm }]}>Start Date</Text>
-          {showDateInput ? (
-            <View style={[styles.dateInputRow, { backgroundColor: colors.surface, borderRadius: borderRadius.md, borderWidth: 1, borderColor: colors.primary, paddingVertical: spacing.sm, paddingHorizontal: spacing.md }]}>
-              <Input value={dateToStr(startDate)} onChangeText={(val) => { const p = new Date(val + 'T12:00:00'); if (!isNaN(p.getTime())) setStartDate(p); }} placeholder="YYYY-MM-DD" style={{ flex: 1, borderWidth: 0, backgroundColor: 'transparent' }} />
-              <Pressable onPress={() => setShowDateInput(false)}>
-                <Ionicons name="checkmark-circle" size={24} color={colors.primary} />
-              </Pressable>
+          <Pressable
+            onPress={() => setShowDateInput(!showDateInput)}
+            style={[styles.dateDisplay, { backgroundColor: colors.surface, borderRadius: borderRadius.md, borderWidth: 1, borderColor: showDateInput ? colors.primary : colors.border, paddingVertical: spacing.md, paddingHorizontal: spacing.md }]}
+          >
+            <Ionicons name="calendar" size={20} color={showDateInput ? colors.primary : colors.textSecondary} />
+            <Text style={[styles.dateText, { color: colors.text, fontSize: fontSize.md, fontWeight: fontWeight.medium }]}>{formatDate(startDate)}</Text>
+            <Ionicons name={showDateInput ? 'chevron-up' : 'chevron-down'} size={18} color={colors.textTertiary} />
+          </Pressable>
+          {showDateInput && (
+            <View style={{ marginTop: spacing.sm }}>
+              <CalendarPicker value={startDate} onChange={(d) => { setStartDate(d); setShowDateInput(false); }} />
             </View>
-          ) : (
-            <Pressable onPress={() => setShowDateInput(true)} style={[styles.dateDisplay, { backgroundColor: colors.surface, borderRadius: borderRadius.md, borderWidth: 1, borderColor: colors.border, paddingVertical: spacing.md, paddingHorizontal: spacing.md }]}>
-              <Ionicons name="calendar" size={20} color={colors.textSecondary} />
-              <Text style={[styles.dateText, { color: colors.text, fontSize: fontSize.md }]}>{formatDate(startDate)}</Text>
-            </Pressable>
           )}
         </View>
 
@@ -240,19 +237,21 @@ export default function SubscriptionDetailScreen() {
             <Text style={{ color: colors.text, fontSize: fontSize.md, marginLeft: spacing.sm }}>Set end date</Text>
           </Pressable>
           {hasEndDate && endDate && (
-            showEndDateInput ? (
-              <View style={[styles.dateInputRow, { backgroundColor: colors.surface, borderRadius: borderRadius.md, borderWidth: 1, borderColor: colors.primary, paddingVertical: spacing.sm, paddingHorizontal: spacing.md, marginTop: spacing.sm }]}>
-                <Input value={dateToStr(endDate)} onChangeText={(val) => { const p = new Date(val + 'T12:00:00'); if (!isNaN(p.getTime())) setEndDate(p); }} placeholder="YYYY-MM-DD" style={{ flex: 1, borderWidth: 0, backgroundColor: 'transparent' }} />
-                <Pressable onPress={() => setShowEndDateInput(false)}>
-                  <Ionicons name="checkmark-circle" size={24} color={colors.primary} />
-                </Pressable>
-              </View>
-            ) : (
-              <Pressable onPress={() => setShowEndDateInput(true)} style={[styles.dateDisplay, { backgroundColor: colors.surface, borderRadius: borderRadius.md, borderWidth: 1, borderColor: colors.border, paddingVertical: spacing.md, paddingHorizontal: spacing.md, marginTop: spacing.sm }]}>
-                <Ionicons name="calendar" size={20} color={colors.textSecondary} />
-                <Text style={[styles.dateText, { color: colors.text, fontSize: fontSize.md }]}>{formatDate(endDate)}</Text>
+            <>
+              <Pressable
+                onPress={() => setShowEndDateInput(!showEndDateInput)}
+                style={[styles.dateDisplay, { backgroundColor: colors.surface, borderRadius: borderRadius.md, borderWidth: 1, borderColor: showEndDateInput ? colors.primary : colors.border, paddingVertical: spacing.md, paddingHorizontal: spacing.md, marginTop: spacing.sm }]}
+              >
+                <Ionicons name="calendar" size={20} color={showEndDateInput ? colors.primary : colors.textSecondary} />
+                <Text style={[styles.dateText, { color: colors.text, fontSize: fontSize.md, fontWeight: fontWeight.medium }]}>{formatDate(endDate)}</Text>
+                <Ionicons name={showEndDateInput ? 'chevron-up' : 'chevron-down'} size={18} color={colors.textTertiary} />
               </Pressable>
-            )
+              {showEndDateInput && (
+                <View style={{ marginTop: spacing.sm }}>
+                  <CalendarPicker value={endDate} onChange={(d) => { setEndDate(d); setShowEndDateInput(false); }} />
+                </View>
+              )}
+            </>
           )}
         </View>
 
@@ -266,7 +265,7 @@ export default function SubscriptionDetailScreen() {
             <Ionicons name="trash-outline" size={18} color={colors.danger} />
             <Text style={{ color: colors.danger, fontSize: fontSize.md, fontWeight: fontWeight.semibold, marginLeft: spacing.sm }}>Delete Subscription</Text>
           </Pressable>
-          <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.ghostButton, { opacity: pressed ? 0.6 : 1, paddingVertical: spacing.sm }]}>
+          <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.ghostButton, { opacity: pressed ? 0.6 : 1, paddingVertical: spacing.md }]}>
             <Text style={{ color: colors.textSecondary, fontSize: fontSize.md, fontWeight: fontWeight.semibold }}>Cancel</Text>
           </Pressable>
         </View>
@@ -286,7 +285,6 @@ const styles = StyleSheet.create({
   freqRow: { flexDirection: 'row' },
   freqButton: { flex: 1, alignItems: 'center' },
   dateDisplay: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  dateInputRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   dateText: { flex: 1 },
   switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   optionalRow: { flexDirection: 'row', alignItems: 'center' },
