@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Timestamp } from 'firebase/firestore';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/constants/useTheme';
 import { AmountInput, Button, Input, CategoryPicker } from '@/src/components/ui';
 import { useExpenseStore } from '@/src/stores/expenseStore';
@@ -152,7 +153,7 @@ export default function EditExpenseScreen() {
         <View style={[styles.fieldSection, { marginBottom: spacing.lg }]}>
           <Text style={[styles.fieldLabel, { color: colors.text, fontSize: fontSize.sm, fontWeight: fontWeight.semibold, marginBottom: spacing.sm }]}>Date</Text>
           <View style={[styles.dateDisplay, { backgroundColor: colors.surface, borderRadius: borderRadius.md, borderWidth: 1, borderColor: colors.border, paddingVertical: spacing.md, paddingHorizontal: spacing.md }]}>
-            <Text style={[styles.dateEmoji, { fontSize: fontSize.lg }]}>{'\uD83D\uDCC5'}</Text>
+            <Ionicons name="calendar" size={20} color={colors.textSecondary} />
             <Text style={[styles.dateText, { color: colors.text, fontSize: fontSize.md, fontWeight: fontWeight.medium }]}>{formatDate(date)}</Text>
           </View>
         </View>

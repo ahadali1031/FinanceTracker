@@ -1,5 +1,6 @@
 import React from 'react';
 import { StyleSheet, View, Text } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/constants/useTheme';
 import { Button } from './Button';
 
@@ -31,7 +32,7 @@ export function EmptyState({
           },
         ]}
       >
-        <Text style={styles.icon}>{icon}</Text>
+        <Ionicons name={icon as any} size={48} color={colors.textTertiary} />
       </View>
       <Text
         style={[
@@ -82,9 +83,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 24,
   },
-  icon: {
-    fontSize: 72,
-  },
+  icon: {},
   title: {
     textAlign: 'center',
     marginBottom: 10,

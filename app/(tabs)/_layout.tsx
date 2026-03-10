@@ -1,6 +1,6 @@
 import React from 'react';
-import { Text } from 'react-native';
 import { Tabs } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
@@ -68,10 +68,8 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'Dashboard',
-          tabBarIcon: ({ focused }) => (
-            <Text style={{ fontSize: 22, opacity: focused ? 1 : 0.6 }}>
-              {'\uD83D\uDCCA'}
-            </Text>
+          tabBarIcon: ({ color }) => (
+            <Ionicons name="grid" size={24} color={color} />
           ),
         }}
       />
@@ -79,10 +77,8 @@ export default function TabLayout() {
         name="expenses"
         options={{
           title: 'Expenses',
-          tabBarIcon: ({ focused }) => (
-            <Text style={{ fontSize: 22, opacity: focused ? 1 : 0.6 }}>
-              {'\uD83D\uDCB0'}
-            </Text>
+          tabBarIcon: ({ color }) => (
+            <Ionicons name="wallet" size={24} color={color} />
           ),
         }}
       />
@@ -90,10 +86,8 @@ export default function TabLayout() {
         name="investments"
         options={{
           title: 'Investments',
-          tabBarIcon: ({ focused }) => (
-            <Text style={{ fontSize: 22, opacity: focused ? 1 : 0.6 }}>
-              {'\uD83D\uDCC8'}
-            </Text>
+          tabBarIcon: ({ color }) => (
+            <Ionicons name="trending-up" size={24} color={color} />
           ),
         }}
       />
@@ -101,10 +95,8 @@ export default function TabLayout() {
         name="subscriptions"
         options={{
           title: 'Subscriptions',
-          tabBarIcon: ({ focused }) => (
-            <Text style={{ fontSize: 22, opacity: focused ? 1 : 0.6 }}>
-              {'\uD83D\uDD04'}
-            </Text>
+          tabBarIcon: ({ color }) => (
+            <Ionicons name="repeat" size={24} color={color} />
           ),
         }}
       />
@@ -112,10 +104,8 @@ export default function TabLayout() {
         name="settings"
         options={{
           title: 'Settings',
-          tabBarIcon: ({ focused }) => (
-            <Text style={{ fontSize: 22, opacity: focused ? 1 : 0.6 }}>
-              {'\u2699\uFE0F'}
-            </Text>
+          tabBarIcon: ({ color }) => (
+            <Ionicons name="settings" size={24} color={color} />
           ),
         }}
       />

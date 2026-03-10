@@ -8,6 +8,7 @@ import {
   Animated,
   Dimensions,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { signInAnonymously } from 'firebase/auth';
 import { auth } from '@/src/lib/firebase';
 
@@ -126,7 +127,7 @@ export default function LoginScreen() {
           },
         ]}
       >
-        <Text style={styles.icon}>📊</Text>
+        <Ionicons name="analytics" size={80} color="#00B67A" />
       </Animated.View>
 
       {/* Title and subtitle */}
@@ -182,9 +183,7 @@ const styles = StyleSheet.create({
   iconContainer: {
     marginBottom: 24,
   },
-  icon: {
-    fontSize: 80,
-  },
+  icon: {},
   header: {
     alignItems: 'center',
   },

@@ -16,6 +16,7 @@ import { useIncomeStore } from '@/src/stores/incomeStore';
 import { useAuthStore } from '@/src/stores/authStore';
 import { formatCurrency } from '@/src/utils/currency';
 import { formatDate, formatMonthYear } from '@/src/utils/date';
+import { Ionicons } from '@expo/vector-icons';
 import type { Income } from '@/src/types';
 
 function AnimatedIncomeRow({
@@ -54,7 +55,7 @@ function AnimatedIncomeRow({
         <View style={[styles.accentBar, { backgroundColor: colors.income, borderTopLeftRadius: borderRadius.md, borderBottomLeftRadius: borderRadius.md }]} />
         <View style={[styles.rowContent, { paddingVertical: spacing.md, paddingRight: spacing.md, paddingLeft: spacing.md }]}>
           <View style={styles.rowLeft}>
-            <Text style={[styles.sourceIcon, { fontSize: fontSize.xxl }]}>{'\uD83D\uDCB5'}</Text>
+            <Ionicons name="cash" size={24} color={colors.income} style={styles.sourceIcon} />
             <View style={styles.rowText}>
               <View style={styles.sourceRow}>
                 <Text style={[styles.source, { color: colors.text, fontSize: fontSize.md, fontWeight: fontWeight.bold }]} numberOfLines={1}>
@@ -85,16 +86,15 @@ function AnimatedIncomeRow({
             <Text style={[styles.amount, { color: colors.income, fontSize: fontSize.md, fontWeight: fontWeight.semibold }]}>
               +{formatCurrency(item.amount)}
             </Text>
-            <Pressable
-              onPress={(e) => {
-                e.stopPropagation();
-                onDelete();
-              }}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              style={({ pressed }) => [styles.deleteButton, { backgroundColor: pressed ? colors.border : 'transparent', borderRadius: borderRadius.sm }]}
-            >
-              <Text style={[styles.deleteIcon, { color: colors.danger, fontSize: fontSize.sm }]}>{'\uD83D\uDDD1'}</Text>
-            </Pressable>
+            <View onStartShouldSetResponder={() => true}>
+              <Pressable
+                onPress={() => onDelete()}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                style={({ pressed }) => [styles.deleteButton, { backgroundColor: pressed ? colors.border : 'transparent', borderRadius: borderRadius.sm }]}
+              >
+                <Ionicons name="trash-outline" size={16} color={colors.danger} />
+              </Pressable>
+            </View>
           </View>
         </View>
       </Card>
@@ -227,7 +227,7 @@ export default function IncomeScreen() {
       {/* Income list */}
       {filtered.length === 0 ? (
         <EmptyState
-          icon="\uD83D\uDCB0"
+          icon="cash-outline"
           title="No income yet"
           subtitle="Tap the + button to add your first income entry for this month."
         />
@@ -252,7 +252,7 @@ export default function IncomeScreen() {
         ]}
         onPress={() => router.push('/income/add')}
       >
-        <Text style={styles.fabText}>+</Text>
+        <Ionicons name="add" size={28} color="#fff" />
       </Pressable>
     </View>
   );

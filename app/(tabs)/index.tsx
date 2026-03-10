@@ -8,16 +8,9 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/constants/useTheme';
-import { useAuthStore } from '@/src/stores/authStore';
 import { formatCurrency } from '@/src/utils/currency';
-
-function getGreeting(): string {
-  const hour = new Date().getHours();
-  if (hour < 12) return 'Good morning';
-  if (hour < 17) return 'Good afternoon';
-  return 'Good evening';
-}
 
 function FadeInView({
   delay = 0,
@@ -127,21 +120,18 @@ function SummaryCard({
 interface QuickAction {
   label: string;
   route: string;
-  emoji: string;
+  icon: string;
 }
 
 const quickActions: QuickAction[] = [
-  { label: 'Add Expense', route: '/expense/add', emoji: '💸' },
-  { label: 'Add Income', route: '/income/add', emoji: '💰' },
-  { label: 'Add Savings', route: '/savings/', emoji: '🏦' },
+  { label: 'Add Expense', route: '/expense/add', icon: 'wallet-outline' },
+  { label: 'Add Income', route: '/income/add', icon: 'cash-outline' },
+  { label: 'Add Savings', route: '/savings/', icon: 'business-outline' },
 ];
 
 export default function DashboardScreen() {
   const { colors, spacing, borderRadius, fontSize, fontWeight } = useTheme();
   const router = useRouter();
-  const user = useAuthStore((s) => s.user);
-
-  const displayName = user?.displayName || null;
 
   return (
     <ScrollView
@@ -149,32 +139,6 @@ export default function DashboardScreen() {
       contentContainerStyle={[styles.content, { padding: spacing.md }]}
       showsVerticalScrollIndicator={false}
     >
-      {/* Greeting */}
-      <FadeInView delay={0}>
-        <Text
-          style={[
-            styles.greeting,
-            { color: colors.textSecondary, fontSize: fontSize.md },
-          ]}
-        >
-          {getGreeting()}{displayName ? ',' : ''}
-        </Text>
-        {displayName && (
-          <Text
-            style={[
-              styles.name,
-              {
-                color: colors.text,
-                fontSize: fontSize.xxl,
-                fontWeight: fontWeight.bold,
-              },
-            ]}
-          >
-            {displayName}
-          </Text>
-        )}
-      </FadeInView>
-
       {/* Net Worth Hero Card */}
       <FadeInView delay={100}>
         <View
@@ -347,7 +311,7 @@ export default function DashboardScreen() {
                   },
                 ]}
               >
-                <Text style={styles.chipEmoji}>{action.emoji}</Text>
+                <Ionicons name={action.icon as any} size={18} color={colors.primary} style={styles.chipEmoji} />
                 <Text
                   style={[
                     styles.chipText,
@@ -377,12 +341,6 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingBottom: 32,
-  },
-  greeting: {
-    marginTop: 8,
-  },
-  name: {
-    marginBottom: 20,
   },
   netWorthCard: {
     alignItems: 'center',
@@ -445,7 +403,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   chipEmoji: {
-    fontSize: 18,
     marginRight: 8,
   },
   chipText: {

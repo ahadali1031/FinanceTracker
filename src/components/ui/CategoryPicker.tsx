@@ -8,6 +8,7 @@ import {
   Animated,
   ViewStyle,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/constants/useTheme';
 
 interface Category {
@@ -83,7 +84,12 @@ function CategoryChip({
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
       >
-        <Text style={[styles.icon, { fontSize: fontSize.xl }]}>{category.icon}</Text>
+        <Ionicons
+          name={category.icon as any}
+          size={20}
+          color={isSelected ? '#FFFFFF' : colors.textSecondary}
+          style={styles.icon}
+        />
         <Text
           style={[
             styles.label,
