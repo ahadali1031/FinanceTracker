@@ -84,18 +84,17 @@ function RootLayoutNav() {
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
+      <Stack screenOptions={{ animation: 'slide_from_right' }}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="login" options={{ headerShown: false }} />
-        <Stack.Screen name="expense/add" options={{ presentation: 'modal', title: 'Add Expense' }} />
-        <Stack.Screen name="expense/[id]" options={{ presentation: 'card', title: 'Expense Details' }} />
-        <Stack.Screen name="subscription/add" options={{ presentation: 'modal', title: 'Add Subscription' }} />
-        <Stack.Screen name="subscription/[id]" options={{ presentation: 'card', title: 'Edit Subscription' }} />
-        <Stack.Screen name="income/index" options={{ presentation: 'card', title: 'Income' }} />
-        <Stack.Screen name="income/add" options={{ presentation: 'modal', title: 'Add Income' }} />
-        <Stack.Screen name="investment/[accountId]" options={{ presentation: 'card', title: 'Investment Account' }} />
-        <Stack.Screen name="investment/add-transaction" options={{ presentation: 'modal', title: 'Add Transaction' }} />
-        <Stack.Screen name="savings/[id]" options={{ presentation: 'card', title: 'Savings Account' }} />
+        <Stack.Screen name="login" options={{ headerShown: false, animation: 'fade' }} />
+        <Stack.Screen name="expense/add" options={{ presentation: 'modal', title: 'Add Expense', animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="expense/[id]" options={{ title: 'Expense Details' }} />
+        <Stack.Screen name="subscription/add" options={{ presentation: 'modal', title: 'Add Subscription', animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="subscription/[id]" options={{ title: 'Edit Subscription' }} />
+        <Stack.Screen name="income/add" options={{ presentation: 'modal', title: 'Add Income', animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="investment/[accountId]" options={{ title: 'Investment Account' }} />
+        <Stack.Screen name="investment/add-transaction" options={{ presentation: 'modal', title: 'Add Transaction', animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="savings/[id]" options={{ title: 'Savings Account' }} />
       </Stack>
     </ThemeProvider>
   );

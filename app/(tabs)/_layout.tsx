@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { View, StyleSheet, Pressable } from 'react-native';
-import { Tabs } from 'expo-router';
+import React, { useState, useRef, useCallback } from 'react';
+import { View, StyleSheet, Pressable, Animated } from 'react-native';
+import { Tabs, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 import Colors from '@/constants/Colors';
@@ -8,16 +8,46 @@ import { useColorScheme } from '@/components/useColorScheme';
 import { theme } from '@/constants/Colors';
 import { AddActionSheet } from '@/src/components/AddActionSheet';
 
+function AnimatedTabButton({ children, onPress, onLongPress, accessibilityRole, accessibilityState, style }: any) {
+  const scale = useRef(new Animated.Value(1)).current;
+
+  const handlePressIn = useCallback(() => {
+    Animated.spring(scale, { toValue: 0.88, useNativeDriver: true, speed: 50, bounciness: 4 }).start();
+  }, []);
+
+  const handlePressOut = useCallback(() => {
+    Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 50, bounciness: 6 }).start();
+  }, []);
+
+  return (
+    <Pressable
+      onPress={onPress}
+      onLongPress={onLongPress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      accessibilityRole={accessibilityRole}
+      accessibilityState={accessibilityState}
+      style={style}
+    >
+      <Animated.View style={{ transform: [{ scale }], alignItems: 'center' }}>
+        {children}
+      </Animated.View>
+    </Pressable>
+  );
+}
+
 export default function TabLayout() {
   const colorScheme = useColorScheme() ?? 'light';
   const isDark = colorScheme === 'dark';
   const colors = Colors[colorScheme];
+  const router = useRouter();
   const [showAddSheet, setShowAddSheet] = useState(false);
 
   return (
     <>
       <Tabs
         screenOptions={{
+          animation: 'shift',
           tabBarActiveTintColor: colors.tint,
           tabBarInactiveTintColor: colors.tabIconDefault,
           tabBarLabelStyle: {
@@ -72,6 +102,7 @@ export default function TabLayout() {
           name="index"
           options={{
             title: 'Dashboard',
+            tabBarButton: (props) => <AnimatedTabButton {...props} />,
             tabBarIcon: ({ color }) => (
               <Ionicons name="grid" size={24} color={color} />
             ),
@@ -81,6 +112,7 @@ export default function TabLayout() {
           name="expenses"
           options={{
             title: 'Transactions',
+            tabBarButton: (props) => <AnimatedTabButton {...props} />,
             tabBarIcon: ({ color }) => (
               <Ionicons name="swap-horizontal" size={24} color={color} />
             ),
@@ -90,6 +122,7 @@ export default function TabLayout() {
           name="add"
           options={{
             title: '',
+            tabBarButton: (props) => <AnimatedTabButton {...props} />,
             tabBarLabel: () => null,
             tabBarIcon: () => (
               <View
@@ -118,6 +151,7 @@ export default function TabLayout() {
           name="investments"
           options={{
             title: 'Invest',
+            tabBarButton: (props) => <AnimatedTabButton {...props} />,
             tabBarIcon: ({ color }) => (
               <Ionicons name="trending-up" size={24} color={color} />
             ),
@@ -127,17 +161,51 @@ export default function TabLayout() {
           name="settings"
           options={{
             title: 'Settings',
+            tabBarButton: (props) => <AnimatedTabButton {...props} />,
             tabBarIcon: ({ color }) => (
               <Ionicons name="settings" size={24} color={color} />
             ),
           }}
         />
-        {/* Hide subscriptions from tab bar — accessible from dashboard/action sheet */}
+        {/* Hidden tabs — accessible from dashboard cards */}
+        <Tabs.Screen
+          name="income"
+          options={{
+            title: 'Income',
+            href: null,
+            headerLeft: () => (
+              <Pressable
+                onPress={() => router.push('/')}
+                style={{ marginLeft: 12 }}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons
+                  name="arrow-back"
+                  size={24}
+                  color={isDark ? theme.colors.text.dark : theme.colors.text.light}
+                />
+              </Pressable>
+            ),
+          }}
+        />
         <Tabs.Screen
           name="subscriptions"
           options={{
             title: 'Subscriptions',
             href: null,
+            headerLeft: () => (
+              <Pressable
+                onPress={() => router.push('/')}
+                style={{ marginLeft: 12 }}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons
+                  name="arrow-back"
+                  size={24}
+                  color={isDark ? theme.colors.text.dark : theme.colors.text.light}
+                />
+              </Pressable>
+            ),
           }}
         />
       </Tabs>

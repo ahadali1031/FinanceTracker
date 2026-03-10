@@ -252,7 +252,7 @@ export default function DashboardScreen() {
           fontSize={fontSize}
           fontWeight={fontWeight}
           borderRadius={borderRadius}
-          onPress={() => router.push('/income')}
+          onPress={() => router.push('/(tabs)/income' as any)}
         />
       </View>
       <View style={[styles.gridRow, { gap: spacing.sm }]}>

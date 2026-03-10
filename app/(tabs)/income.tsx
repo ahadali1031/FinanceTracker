@@ -20,6 +20,27 @@ import { formatDate, formatMonthYear } from '@/src/utils/date';
 import { Ionicons } from '@expo/vector-icons';
 import type { Income } from '@/src/types';
 
+function FadeInView({ delay = 0, children, style }: { delay?: number; children: React.ReactNode; style?: any }) {
+  const opacity = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(14)).current;
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      Animated.parallel([
+        Animated.timing(opacity, { toValue: 1, duration: 400, useNativeDriver: true }),
+        Animated.timing(translateY, { toValue: 0, duration: 400, useNativeDriver: true }),
+      ]).start();
+    }, delay);
+    return () => clearTimeout(timeout);
+  }, []);
+
+  return (
+    <Animated.View style={[style, { opacity, transform: [{ translateY }] }]}>
+      {children}
+    </Animated.View>
+  );
+}
+
 function AnimatedIncomeRow({
   item,
   index,
@@ -197,20 +218,23 @@ export default function IncomeScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Monthly total card with accent bar */}
-      <View style={[styles.totalCard, { backgroundColor: colors.surface, marginHorizontal: spacing.md, marginTop: spacing.md, borderRadius: borderRadius.lg, borderColor: colors.border, borderWidth: isDark ? 1 : 0 }]}>
-        {!isDark && <View style={styles.totalCardShadow} />}
-        <View style={[styles.totalAccentBar, { backgroundColor: colors.income, borderTopLeftRadius: borderRadius.lg, borderBottomLeftRadius: borderRadius.lg }]} />
-        <View style={[styles.totalContent, { padding: spacing.lg }]}>
-          <Text style={[styles.totalLabel, { color: colors.textSecondary, fontSize: fontSize.sm, fontWeight: fontWeight.medium }]}>
-            Monthly Income
-          </Text>
-          <Text style={[styles.totalAmount, { color: colors.income, fontSize: fontSize.hero, fontWeight: fontWeight.heavy }]}>
-            {formatCurrency(monthlyTotal)}
-          </Text>
+      <FadeInView delay={100}>
+        <View style={[styles.totalCard, { backgroundColor: colors.surface, marginHorizontal: spacing.md, marginTop: spacing.md, borderRadius: borderRadius.lg, borderColor: colors.border, borderWidth: isDark ? 1 : 0 }]}>
+          {!isDark && <View style={styles.totalCardShadow} />}
+          <View style={[styles.totalAccentBar, { backgroundColor: colors.income, borderTopLeftRadius: borderRadius.lg, borderBottomLeftRadius: borderRadius.lg }]} />
+          <View style={[styles.totalContent, { padding: spacing.lg }]}>
+            <Text style={[styles.totalLabel, { color: colors.textSecondary, fontSize: fontSize.sm, fontWeight: fontWeight.medium }]}>
+              Monthly Income
+            </Text>
+            <Text style={[styles.totalAmount, { color: colors.income, fontSize: fontSize.hero, fontWeight: fontWeight.heavy }]}>
+              {formatCurrency(monthlyTotal)}
+            </Text>
+          </View>
         </View>
-      </View>
+      </FadeInView>
 
       {/* Month selector pills */}
+      <FadeInView delay={200}>
       <View style={[styles.monthSelector, { paddingVertical: spacing.md }]}>
         <Pressable
           onPress={handlePrevMonth}
@@ -228,6 +252,7 @@ export default function IncomeScreen() {
           <Text style={[styles.monthArrowText, { color: colors.primary, fontSize: fontSize.lg }]}>{'\u203A'}</Text>
         </Pressable>
       </View>
+      </FadeInView>
 
       {/* Income list */}
       {filtered.length === 0 ? (

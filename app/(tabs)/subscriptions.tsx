@@ -23,6 +23,27 @@ import type { Subscription } from '@/src/types';
 
 const categoryMap = new Map(SUBSCRIPTION_CATEGORIES.map((c) => [c.id, c]));
 
+function FadeInView({ delay = 0, children, style }: { delay?: number; children: React.ReactNode; style?: any }) {
+  const opacity = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(14)).current;
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      Animated.parallel([
+        Animated.timing(opacity, { toValue: 1, duration: 400, useNativeDriver: true }),
+        Animated.timing(translateY, { toValue: 0, duration: 400, useNativeDriver: true }),
+      ]).start();
+    }, delay);
+    return () => clearTimeout(timeout);
+  }, []);
+
+  return (
+    <Animated.View style={[style, { opacity, transform: [{ translateY }] }]}>
+      {children}
+    </Animated.View>
+  );
+}
+
 const CATEGORY_COLORS: Record<string, string> = {
   streaming: '#E50914',
   music: '#1DB954',
@@ -234,38 +255,42 @@ export default function SubscriptionsScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Summary cards */}
-      <View style={[styles.summaryRow, { marginHorizontal: spacing.md, marginTop: spacing.md, gap: spacing.sm }]}>
-        <View style={[styles.summaryCard, { backgroundColor: colors.surface, borderRadius: borderRadius.lg, borderColor: colors.border, borderWidth: isDark ? 1 : 0 }]}>
-          <View style={[styles.summaryAccent, { backgroundColor: colors.subscription, borderTopLeftRadius: borderRadius.lg, borderBottomLeftRadius: borderRadius.lg }]} />
-          <View style={[styles.summaryContent, { padding: spacing.md }]}>
-            <Text style={[styles.summaryLabel, { color: colors.textSecondary, fontSize: fontSize.xs }]}>Monthly</Text>
-            <Text style={[styles.summaryAmount, { color: colors.subscription, fontSize: fontSize.lg, fontWeight: fontWeight.bold }]}>
-              {formatCurrency(monthlyTotal)}
-            </Text>
+      <FadeInView delay={100}>
+        <View style={[styles.summaryRow, { marginHorizontal: spacing.md, marginTop: spacing.md, gap: spacing.sm }]}>
+          <View style={[styles.summaryCard, { backgroundColor: colors.surface, borderRadius: borderRadius.lg, borderColor: colors.border, borderWidth: isDark ? 1 : 0 }]}>
+            <View style={[styles.summaryAccent, { backgroundColor: colors.subscription, borderTopLeftRadius: borderRadius.lg, borderBottomLeftRadius: borderRadius.lg }]} />
+            <View style={[styles.summaryContent, { padding: spacing.md }]}>
+              <Text style={[styles.summaryLabel, { color: colors.textSecondary, fontSize: fontSize.xs }]}>Monthly</Text>
+              <Text style={[styles.summaryAmount, { color: colors.subscription, fontSize: fontSize.lg, fontWeight: fontWeight.bold }]}>
+                {formatCurrency(monthlyTotal)}
+              </Text>
+            </View>
+          </View>
+          <View style={[styles.summaryCard, { backgroundColor: colors.surface, borderRadius: borderRadius.lg, borderColor: colors.border, borderWidth: isDark ? 1 : 0 }]}>
+            <View style={[styles.summaryAccent, { backgroundColor: colors.expense, borderTopLeftRadius: borderRadius.lg, borderBottomLeftRadius: borderRadius.lg }]} />
+            <View style={[styles.summaryContent, { padding: spacing.md }]}>
+              <Text style={[styles.summaryLabel, { color: colors.textSecondary, fontSize: fontSize.xs }]}>Yearly</Text>
+              <Text style={[styles.summaryAmount, { color: colors.expense, fontSize: fontSize.lg, fontWeight: fontWeight.bold }]}>
+                {formatCurrency(yearlyTotal)}
+              </Text>
+            </View>
           </View>
         </View>
-        <View style={[styles.summaryCard, { backgroundColor: colors.surface, borderRadius: borderRadius.lg, borderColor: colors.border, borderWidth: isDark ? 1 : 0 }]}>
-          <View style={[styles.summaryAccent, { backgroundColor: colors.expense, borderTopLeftRadius: borderRadius.lg, borderBottomLeftRadius: borderRadius.lg }]} />
-          <View style={[styles.summaryContent, { padding: spacing.md }]}>
-            <Text style={[styles.summaryLabel, { color: colors.textSecondary, fontSize: fontSize.xs }]}>Yearly</Text>
-            <Text style={[styles.summaryAmount, { color: colors.expense, fontSize: fontSize.lg, fontWeight: fontWeight.bold }]}>
-              {formatCurrency(yearlyTotal)}
-            </Text>
-          </View>
-        </View>
-      </View>
+      </FadeInView>
 
       {/* Active count + upcoming */}
-      <View style={[styles.infoRow, { marginHorizontal: spacing.md, marginTop: spacing.sm, marginBottom: spacing.xs }]}>
-        <Text style={[styles.infoText, { color: colors.textSecondary, fontSize: fontSize.sm }]}>
-          {activeCount} active subscription{activeCount !== 1 ? 's' : ''}
-        </Text>
-        {upcoming.length > 0 && (
-          <Text style={[styles.infoText, { color: colors.subscription, fontSize: fontSize.sm, fontWeight: fontWeight.semibold }]}>
-            {upcoming.length} renewing soon
+      <FadeInView delay={200}>
+        <View style={[styles.infoRow, { marginHorizontal: spacing.md, marginTop: spacing.sm, marginBottom: spacing.xs }]}>
+          <Text style={[styles.infoText, { color: colors.textSecondary, fontSize: fontSize.sm }]}>
+            {activeCount} active subscription{activeCount !== 1 ? 's' : ''}
           </Text>
-        )}
-      </View>
+          {upcoming.length > 0 && (
+            <Text style={[styles.infoText, { color: colors.subscription, fontSize: fontSize.sm, fontWeight: fontWeight.semibold }]}>
+              {upcoming.length} renewing soon
+            </Text>
+          )}
+        </View>
+      </FadeInView>
 
       {/* Subscription list */}
       {subscriptions.length === 0 ? (
@@ -284,19 +309,6 @@ export default function SubscriptionsScreen() {
         />
       )}
 
-      {/* FAB */}
-      <Pressable
-        style={({ pressed }) => [
-          styles.fab,
-          {
-            backgroundColor: colors.primary,
-            transform: [{ scale: pressed ? 0.92 : 1 }],
-          },
-        ]}
-        onPress={() => router.push('/subscription/add')}
-      >
-        <Ionicons name="add" size={28} color="#fff" />
-      </Pressable>
     </View>
   );
 }
@@ -326,19 +338,4 @@ const styles = StyleSheet.create({
   rowActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   toggle: { transform: [{ scaleX: 0.8 }, { scaleY: 0.8 }] },
   deleteButton: { paddingHorizontal: 6, paddingVertical: 4 },
-  fab: {
-    position: 'absolute',
-    bottom: 28,
-    right: 24,
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 10,
-    elevation: 10,
-  },
 });
