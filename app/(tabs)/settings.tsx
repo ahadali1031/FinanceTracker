@@ -30,20 +30,12 @@ export default function SettingsScreen() {
         </View>
       </View>
 
-      {/* Placeholder Sections */}
+      {/* Preferences */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Preferences</Text>
         <View style={styles.menuItem}>
           <Text style={styles.menuItemText}>Theme</Text>
           <Text style={styles.menuItemValue}>System</Text>
-        </View>
-        <View style={styles.menuItem}>
-          <Text style={styles.menuItemText}>Notifications</Text>
-          <Text style={styles.menuItemValue}>On</Text>
-        </View>
-        <View style={styles.menuItem}>
-          <Text style={styles.menuItemText}>Export Data</Text>
-          <Text style={styles.menuItemValue}>CSV</Text>
         </View>
       </View>
 
