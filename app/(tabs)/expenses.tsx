@@ -14,6 +14,7 @@ import {
 import { useRouter } from 'expo-router';
 import { useTheme } from '@/constants/useTheme';
 import { Card, EmptyState } from '@/src/components/ui';
+import { DonutChart } from '@/src/components/charts';
 import { useExpenseStore } from '@/src/stores/expenseStore';
 import { useIncomeStore } from '@/src/stores/incomeStore';
 import { useAuthStore } from '@/src/stores/authStore';
@@ -246,6 +247,7 @@ export default function TransactionsScreen() {
   const [showTypeDropdown, setShowTypeDropdown] = useState(false);
   const [showBizDropdown, setShowBizDropdown] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showCharts, setShowCharts] = useState(true);
 
   useEffect(() => {
     if (!user?.uid) return;
@@ -341,6 +343,28 @@ export default function TransactionsScreen() {
 
     return { monthlyExpenses: expTotal, monthlyIncome: incTotal, businessExpenses: bizExpTotal, businessIncome: bizIncTotal, flatData: items };
   }, [expenses, incomes, selectedMonth, typeFilter, bizFilter, searchQuery]);
+
+  // Compute donut chart data: expense breakdown by category for current month
+  const donutData = useMemo(() => {
+    const year = selectedMonth.getFullYear();
+    const month = selectedMonth.getMonth();
+    const catTotals = new Map<string, number>();
+
+    for (const e of expenses) {
+      const d = e.date.toDate();
+      if (d.getFullYear() === year && d.getMonth() === month) {
+        catTotals.set(e.category, (catTotals.get(e.category) ?? 0) + e.amount);
+      }
+    }
+
+    return Array.from(catTotals.entries())
+      .map(([catId, value]) => ({
+        label: categoryMap.get(catId)?.name ?? catId,
+        value,
+        color: CATEGORY_ACCENT_COLORS[catId] ?? colors.primary,
+      }))
+      .sort((a, b) => b.value - a.value);
+  }, [expenses, selectedMonth, colors.primary]);
 
   const handlePrevMonth = useCallback(() => {
     setSelectedMonth((prev) => {
@@ -485,6 +509,54 @@ export default function TransactionsScreen() {
           </Text>
         </View>
       </FadeInView>
+
+      {/* Category Breakdown Chart — collapsible */}
+      {donutData.length > 0 && (
+        <FadeInView delay={175}>
+          <Pressable
+            onPress={() => setShowCharts((prev) => !prev)}
+            style={[
+              styles.chartToggle,
+              {
+                marginHorizontal: spacing.md,
+                marginTop: spacing.sm,
+                paddingVertical: spacing.sm,
+                paddingHorizontal: spacing.xs,
+              },
+            ]}
+          >
+            <Ionicons
+              name={showCharts ? 'chevron-down' : 'chevron-forward'}
+              size={16}
+              color={colors.textTertiary}
+            />
+            <Text
+              style={{
+                color: colors.textSecondary,
+                fontSize: fontSize.sm,
+                fontWeight: fontWeight.semibold,
+                marginLeft: spacing.xs,
+              }}
+            >
+              Category Breakdown
+            </Text>
+          </Pressable>
+          {showCharts && (
+            <Card
+              style={{
+                marginHorizontal: spacing.md,
+                marginBottom: spacing.sm,
+              }}
+            >
+              <DonutChart
+                data={donutData}
+                centerLabel="Total"
+                centerValue={formatCurrency(monthlyExpenses)}
+              />
+            </Card>
+          )}
+        </FadeInView>
+      )}
 
       {/* Filter dropdowns — overlays, not push-down */}
       <FadeInView delay={200}>
@@ -768,5 +840,9 @@ const styles = StyleSheet.create({
   deleteButton: {
     paddingHorizontal: 6,
     paddingVertical: 4,
+  },
+  chartToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
 });

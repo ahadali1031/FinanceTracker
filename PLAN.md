@@ -96,25 +96,26 @@
 - [x] isTransfer/transferTo fields on Expense, InvestmentTransaction, SavingsSnapshot types
 - [x] Firestore writes parallelized with Promise.all for 401k buy + match
 
-## Phase 5: Savings, Dashboard Charts & Budget 🔲
+## Phase 5: Savings, Dashboard Charts & Budget ✅
 - [x] Savings accounts list — name, institution, latest balance, emergency fund badge
 - [x] Add savings account (inline form with emergency fund toggle)
 - [x] Account detail — balance history (snapshots) with change indicators
 - [x] Add balance snapshot (balance + date with calendar picker)
 - [x] Dashboard savings card tappable → savings list
 - [x] Delete account with confirmation
-- [ ] **Net Worth Dashboard Charts**:
-  - [ ] Area chart with gradient fill + time range selector (1M/3M/6M/YTD/1Y/All)
-  - [ ] Change indicators: $ change + % change (green/red)
-  - [ ] Touch-scrub for exact value + date tooltip
-- [ ] **Monthly Expenses Charts**:
-  - [ ] Donut chart (top 5 categories + Other), total in center
-  - [ ] Horizontal bar list for comparison
-  - [ ] Monthly bar chart comparing last 6 months
-- [ ] **Budget Targets**:
-  - [ ] Set monthly limit per category
-  - [ ] Progress bars (green → yellow → red)
-  - [ ] Summary: total spent, remaining, vs last month
+- [x] **Net Worth Dashboard Charts**:
+  - [x] Line chart with time range selector (3M/6M/1Y)
+  - [x] Tappable dots with value tooltip
+- [x] **Monthly Expenses Charts**:
+  - [x] Donut chart (category breakdown with legend), total in center
+  - [x] Monthly bar chart comparing last N months on dashboard
+- [x] **Budget Targets**:
+  - [x] Set monthly limit per category (budget/index.tsx screen)
+  - [x] Progress bars (green <75% → yellow 75-90% → red >90%)
+  - [x] Summary: total budgeted, total spent, remaining
+  - [x] Inline edit + delete for existing targets
+  - [x] Dashboard budget card with overall progress bar
+  - [x] Settings → Manage Budgets navigation
 - [ ] **Business vs Personal Charts**:
   - [ ] Side-by-side bar chart: personal vs business expenses per month (last 6 months)
   - [ ] Donut chart: business expense breakdown by category
@@ -167,4 +168,6 @@
 - Checking is a computed account (income - expenses), not a Firestore collection
 - Transfers between own accounts (checking → savings/investment) don't affect net worth
 - 401k employer match auto-generates employer_match transactions (editable after the fact)
-- YTD cap enforcement for employer match is TODO (currently caps per-contribution)
+- YTD cap enforcement for employer match queries existing match transactions before generating new ones
+- Transfer linkage: investment buys and savings deposits marked as "transfer from checking" auto-create transfer expense entries
+- Global success toast system (toastStore + SuccessToast in root layout) for form confirmations

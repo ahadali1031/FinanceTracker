@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useMemo } from 'react';
+import React, { useEffect, useRef, useMemo, useState } from 'react';
 import {
   StyleSheet,
   View,
@@ -10,11 +10,13 @@ import {
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/constants/useTheme';
+import { LineChart, BarChart } from '@/src/components/charts';
 import { useAuthStore } from '@/src/stores/authStore';
 import { useExpenseStore } from '@/src/stores/expenseStore';
 import { useIncomeStore } from '@/src/stores/incomeStore';
 import { useSubscriptionStore } from '@/src/stores/subscriptionStore';
 import { useSavingsStore } from '@/src/stores/savingsStore';
+import { useBudgetStore } from '@/src/stores/budgetStore';
 import { useInvestmentStore } from '@/src/stores/investmentStore';
 import { formatCurrency } from '@/src/utils/currency';
 
@@ -140,6 +142,7 @@ export default function DashboardScreen() {
   const { subscriptions, subscribeToSubscriptions, getMonthlyTotal } = useSubscriptionStore();
   const { subscribeToAccounts: subscribeToSavings, getTotalSavings } = useSavingsStore();
   const { accounts: investmentAccounts, holdings: investmentHoldings, subscribeToAccounts: subscribeToInvestments } = useInvestmentStore();
+  const { targets: budgetTargets, subscribeToTargets: subscribeToBudgets } = useBudgetStore();
 
   // Subscribe to all data
   useEffect(() => {
@@ -150,6 +153,7 @@ export default function DashboardScreen() {
       subscribeToSubscriptions(user.uid),
       subscribeToSavings(user.uid),
       subscribeToInvestments(user.uid),
+      subscribeToBudgets(user.uid),
     ];
     return () => unsubs.forEach((u) => u());
   }, [user?.uid]);
@@ -204,6 +208,25 @@ export default function DashboardScreen() {
 
   const monthlySubscriptions = useMemo(() => getMonthlyTotal(), [subscriptions]);
 
+  // Budget summary
+  const { budgetTotal, budgetSpent } = useMemo(() => {
+    const now = new Date();
+    let total = 0;
+    let spent = 0;
+    for (const t of budgetTargets) {
+      total += t.monthlyLimit;
+      // Compute spent for this category this month
+      for (const e of expenses) {
+        if (e.category !== t.category) continue;
+        const d = e.date.toDate();
+        if (d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()) {
+          spent += e.amount;
+        }
+      }
+    }
+    return { budgetTotal: total, budgetSpent: spent };
+  }, [budgetTargets, expenses]);
+
   // Add business subscriptions to business expense total
   const businessSubscriptions = useMemo(() => {
     let total = 0;
@@ -215,6 +238,88 @@ export default function DashboardScreen() {
     return total;
   }, [subscriptions]);
   const totalBusinessExpenses = businessExpenses + businessSubscriptions;
+
+  // --- Chart data: time range selector ---
+  const [timeRange, setTimeRange] = useState<'3M' | '6M' | '1Y'>('6M');
+  const monthCount = timeRange === '3M' ? 3 : timeRange === '6M' ? 6 : 12;
+
+  // Short month names
+  const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+  // Compute last N months of cumulative net worth and monthly expense totals
+  const { netWorthData, expenseBarData } = useMemo(() => {
+    const now = new Date();
+    const currentSavings = getTotalSavings();
+
+    // Compute investment total (current snapshot)
+    let investSnap = 0;
+    for (const acct of investmentAccounts) {
+      const h = investmentHoldings.get(acct.id) ?? [];
+      for (const holding of h) {
+        investSnap += holding.costBasis;
+      }
+    }
+
+    // Build per-month income and expense totals
+    const monthBuckets: { year: number; month: number; income: number; expense: number }[] = [];
+    for (let i = monthCount - 1; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      monthBuckets.push({ year: d.getFullYear(), month: d.getMonth(), income: 0, expense: 0 });
+    }
+
+    // Collect all-time totals for everything before our window
+    let priorIncome = 0;
+    let priorExpense = 0;
+    const windowStart = monthBuckets[0];
+
+    for (const e of expenses) {
+      const d = e.date.toDate();
+      const y = d.getFullYear();
+      const m = d.getMonth();
+      // Check if before window
+      if (y < windowStart.year || (y === windowStart.year && m < windowStart.month)) {
+        priorExpense += e.amount;
+      } else {
+        const bucket = monthBuckets.find((b) => b.year === y && b.month === m);
+        if (bucket) bucket.expense += e.amount;
+      }
+    }
+    for (const inc of incomes) {
+      const d = inc.date.toDate();
+      const y = d.getFullYear();
+      const m = d.getMonth();
+      if (y < windowStart.year || (y === windowStart.year && m < windowStart.month)) {
+        priorIncome += inc.amount;
+      } else {
+        const bucket = monthBuckets.find((b) => b.year === y && b.month === m);
+        if (bucket) bucket.income += inc.amount;
+      }
+    }
+
+    // Build cumulative net worth per month end
+    // Net worth = cumulative checking (income - expenses) + savings + investments
+    let cumulativeInc = priorIncome;
+    let cumulativeExp = priorExpense;
+
+    const nwData = monthBuckets.map((b) => {
+      cumulativeInc += b.income;
+      cumulativeExp += b.expense;
+      const checking = cumulativeInc - cumulativeExp;
+      return {
+        label: MONTH_NAMES[b.month],
+        value: checking + currentSavings + investSnap,
+      };
+    });
+
+    const barData = monthBuckets.map((b) => ({
+      label: MONTH_NAMES[b.month],
+      value: b.expense,
+    }));
+
+    return { netWorthData: nwData, expenseBarData: barData };
+  }, [expenses, incomes, monthCount, getTotalSavings, investmentAccounts, investmentHoldings]);
+
+  const TIME_RANGES: ('3M' | '6M' | '1Y')[] = ['3M', '6M', '1Y'];
 
   return (
     <ScrollView
@@ -256,6 +361,106 @@ export default function DashboardScreen() {
           </Text>
         </View>
       </FadeInView>
+
+      {/* Net Worth Trend Chart */}
+      {netWorthData.length >= 2 && (
+        <FadeInView delay={150}>
+          <View
+            style={[
+              styles.chartCard,
+              {
+                backgroundColor: colors.surface,
+                borderRadius: borderRadius.lg,
+                padding: spacing.md,
+                marginBottom: spacing.sm,
+              },
+            ]}
+          >
+            <View style={styles.chartHeader}>
+              <Text
+                style={{
+                  color: colors.text,
+                  fontSize: fontSize.md,
+                  fontWeight: fontWeight.semibold,
+                }}
+              >
+                Net Worth Trend
+              </Text>
+              <View style={[styles.timeRangeRow, { gap: spacing.xs }]}>
+                {TIME_RANGES.map((range) => (
+                  <Pressable
+                    key={range}
+                    onPress={() => setTimeRange(range)}
+                    style={[
+                      styles.timeRangeButton,
+                      {
+                        backgroundColor:
+                          timeRange === range ? colors.primary + '18' : 'transparent',
+                        borderRadius: borderRadius.sm,
+                        paddingHorizontal: spacing.sm,
+                        paddingVertical: spacing.xs,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={{
+                        color: timeRange === range ? colors.primary : colors.textTertiary,
+                        fontSize: fontSize.xs,
+                        fontWeight:
+                          timeRange === range ? fontWeight.semibold : fontWeight.normal,
+                      }}
+                    >
+                      {range}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+            <View style={{ marginTop: spacing.sm }}>
+              <LineChart
+                data={netWorthData}
+                height={140}
+                lineColor={colors.primary}
+                fillColor={colors.primary}
+                showDots
+              />
+            </View>
+          </View>
+        </FadeInView>
+      )}
+
+      {/* Monthly Expenses Bar Chart */}
+      {expenseBarData.some((d) => d.value > 0) && (
+        <FadeInView delay={175}>
+          <View
+            style={[
+              styles.chartCard,
+              {
+                backgroundColor: colors.surface,
+                borderRadius: borderRadius.lg,
+                padding: spacing.md,
+                marginBottom: spacing.md,
+              },
+            ]}
+          >
+            <Text
+              style={{
+                color: colors.text,
+                fontSize: fontSize.md,
+                fontWeight: fontWeight.semibold,
+                marginBottom: spacing.sm,
+              }}
+            >
+              Monthly Expenses
+            </Text>
+            <BarChart
+              data={expenseBarData}
+              height={140}
+              barColor={colors.expense}
+            />
+          </View>
+        </FadeInView>
+      )}
 
       {/* Summary Cards - 2x2 Grid */}
       <View style={[styles.gridRow, { gap: spacing.sm }]}>
@@ -368,6 +573,80 @@ export default function DashboardScreen() {
           </View>
         </Pressable>
       </FadeInView>
+
+      {/* Budget Card — only show if there are budget targets */}
+      {budgetTargets.length > 0 && (
+        <FadeInView delay={420}>
+          <Pressable
+            onPress={() => router.push('/budget/' as any)}
+            style={[
+              styles.budgetCard,
+              {
+                backgroundColor: colors.surface,
+                borderRadius: borderRadius.lg,
+              },
+            ]}
+          >
+            <View
+              style={[
+                styles.accentBar,
+                {
+                  backgroundColor: colors.warning,
+                  borderRadius: borderRadius.sm,
+                },
+              ]}
+            />
+            <View style={styles.summaryCardContent}>
+              <View style={styles.summaryLabelRow}>
+                <Text
+                  style={[
+                    styles.summaryLabel,
+                    { color: colors.textSecondary, fontSize: fontSize.xs },
+                  ]}
+                >
+                  Budget This Month
+                </Text>
+                <Ionicons name="chevron-forward" size={14} color={colors.textTertiary} />
+              </View>
+              <View style={styles.budgetAmounts}>
+                <Text
+                  style={{
+                    color: colors.text,
+                    fontSize: fontSize.lg,
+                    fontWeight: fontWeight.bold,
+                  }}
+                >
+                  {formatCurrency(budgetSpent)} / {formatCurrency(budgetTotal)}
+                </Text>
+              </View>
+              <View
+                style={[
+                  styles.budgetProgressBg,
+                  {
+                    backgroundColor: colors.border,
+                    borderRadius: borderRadius.sm,
+                    marginTop: 8,
+                  },
+                ]}
+              >
+                <View
+                  style={{
+                    height: '100%',
+                    width: `${budgetTotal > 0 ? Math.min((budgetSpent / budgetTotal) * 100, 100) : 0}%` as any,
+                    backgroundColor:
+                      budgetTotal > 0 && (budgetSpent / budgetTotal) * 100 > 90
+                        ? colors.danger
+                        : budgetTotal > 0 && (budgetSpent / budgetTotal) * 100 >= 75
+                          ? colors.warning
+                          : colors.success,
+                    borderRadius: borderRadius.sm,
+                  }}
+                />
+              </View>
+            </View>
+          </Pressable>
+        </FadeInView>
+      )}
 
       {/* Business Summary — only show if there are business transactions */}
       {(totalBusinessExpenses > 0 || businessIncome > 0) && (
@@ -497,4 +776,31 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 8,
   },
+  budgetCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    marginBottom: 12,
+    overflow: 'hidden',
+  },
+  budgetAmounts: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+  },
+  budgetProgressBg: {
+    height: 6,
+    width: '100%',
+    overflow: 'hidden',
+  },
+  chartCard: {},
+  chartHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  timeRangeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  timeRangeButton: {},
 });
