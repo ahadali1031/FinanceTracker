@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -8,6 +8,8 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Switch,
+  Animated,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Timestamp } from 'firebase/firestore';
@@ -18,6 +20,21 @@ import { useExpenseStore } from '@/src/stores/expenseStore';
 import { useAuthStore } from '@/src/stores/authStore';
 import { EXPENSE_CATEGORIES } from '@/src/utils/categories';
 import { formatDate } from '@/src/utils/date';
+
+function FadeInView({ delay = 0, children, style }: { delay?: number; children: React.ReactNode; style?: any }) {
+  const opacity = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(14)).current;
+  useEffect(() => {
+    const t = setTimeout(() => {
+      Animated.parallel([
+        Animated.timing(opacity, { toValue: 1, duration: 350, useNativeDriver: true }),
+        Animated.timing(translateY, { toValue: 0, duration: 350, useNativeDriver: true }),
+      ]).start();
+    }, delay);
+    return () => clearTimeout(t);
+  }, []);
+  return <Animated.View style={[style, { opacity, transform: [{ translateY }] }]}>{children}</Animated.View>;
+}
 
 export default function AddExpenseScreen() {
   const { colors, spacing, borderRadius, fontSize, fontWeight } = useTheme();
@@ -31,6 +48,7 @@ export default function AddExpenseScreen() {
   const [description, setDescription] = useState('');
   const [date, setDate] = useState(new Date());
   const [showCalendar, setShowCalendar] = useState(false);
+  const [isBusiness, setIsBusiness] = useState(false);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<{ amount?: string; category?: string }>({});
 
@@ -59,6 +77,7 @@ export default function AddExpenseScreen() {
         category,
         description: description.trim(),
         date: Timestamp.fromDate(date),
+        isBusiness,
       });
       router.back();
     } catch (error) {
@@ -79,80 +98,106 @@ export default function AddExpenseScreen() {
     >
       <ScrollView contentContainerStyle={[styles.content, { padding: spacing.md, paddingBottom: 40 }]} keyboardShouldPersistTaps="handled">
         {/* Hero amount */}
-        <View style={[styles.amountSection, { marginBottom: spacing.lg }]}>
-          <AmountInput label="Amount" value={amount} onChangeText={(val) => { setAmount(val); if (errors.amount) setErrors((e) => ({ ...e, amount: undefined })); }} />
-          {errors.amount && (
-            <Text style={[styles.errorText, { color: colors.danger, fontSize: fontSize.sm, marginTop: spacing.xs }]}>{errors.amount}</Text>
-          )}
-        </View>
+        <FadeInView delay={0}>
+          <View style={[styles.amountSection, { marginBottom: spacing.lg }]}>
+            <AmountInput label="Amount" value={amount} onChangeText={(val) => { setAmount(val); if (errors.amount) setErrors((e) => ({ ...e, amount: undefined })); }} />
+            {errors.amount && (
+              <Text style={[styles.errorText, { color: colors.danger, fontSize: fontSize.sm, marginTop: spacing.xs }]}>{errors.amount}</Text>
+            )}
+          </View>
+        </FadeInView>
 
         {/* Category */}
-        <View style={[styles.fieldSection, { marginBottom: spacing.md }]}>
-          <Text style={[styles.fieldLabel, { color: colors.text, fontSize: fontSize.sm, fontWeight: fontWeight.semibold, marginBottom: spacing.sm }]}>Category</Text>
-          <CategoryPicker
-            categories={[...EXPENSE_CATEGORIES]}
-            selected={category}
-            onSelect={(val) => { setCategory(val); if (errors.category) setErrors((e) => ({ ...e, category: undefined })); }}
-          />
-          {errors.category && (
-            <Text style={[styles.errorText, { color: colors.danger, fontSize: fontSize.sm, marginTop: spacing.xs }]}>{errors.category}</Text>
-          )}
-        </View>
+        <FadeInView delay={80}>
+          <View style={[styles.fieldSection, { marginBottom: spacing.md }]}>
+            <Text style={[styles.fieldLabel, { color: colors.text, fontSize: fontSize.sm, fontWeight: fontWeight.semibold, marginBottom: spacing.sm }]}>Category</Text>
+            <CategoryPicker
+              categories={[...EXPENSE_CATEGORIES]}
+              selected={category}
+              onSelect={(val) => { setCategory(val); if (errors.category) setErrors((e) => ({ ...e, category: undefined })); }}
+            />
+            {errors.category && (
+              <Text style={[styles.errorText, { color: colors.danger, fontSize: fontSize.sm, marginTop: spacing.xs }]}>{errors.category}</Text>
+            )}
+          </View>
+        </FadeInView>
 
         {/* Description */}
-        <View style={[styles.fieldSection, { marginBottom: spacing.md }]}>
-          <Input
-            label="Description"
-            placeholder="What was this expense for?"
-            value={description}
-            onChangeText={setDescription}
-          />
-        </View>
+        <FadeInView delay={160}>
+          <View style={[styles.fieldSection, { marginBottom: spacing.md }]}>
+            <Input
+              label="Description"
+              placeholder="What was this expense for?"
+              value={description}
+              onChangeText={setDescription}
+            />
+          </View>
+        </FadeInView>
+
+        {/* Business toggle */}
+        <FadeInView delay={240}>
+          <View style={[styles.switchRow, { backgroundColor: colors.surface, borderRadius: borderRadius.md, borderWidth: 1, borderColor: colors.border, padding: spacing.md, marginBottom: spacing.md }]}>
+            <View style={{ flex: 1, marginRight: 12 }}>
+              <Text style={{ color: colors.text, fontSize: fontSize.md, fontWeight: fontWeight.medium }}>Business Expense</Text>
+              <Text style={{ color: colors.textTertiary, fontSize: fontSize.xs, marginTop: 2 }}>Flag as business-related</Text>
+            </View>
+            <Switch
+              value={isBusiness}
+              onValueChange={setIsBusiness}
+              trackColor={{ false: colors.border, true: colors.primary + '60' }}
+              thumbColor={isBusiness ? colors.primary : '#fff'}
+            />
+          </View>
+        </FadeInView>
 
         {/* Date */}
-        <View style={[styles.fieldSection, { marginBottom: spacing.lg }]}>
-          <Text style={[styles.fieldLabel, { color: colors.text, fontSize: fontSize.sm, fontWeight: fontWeight.semibold, marginBottom: spacing.sm }]}>Date</Text>
-          <Pressable
-            onPress={() => setShowCalendar(!showCalendar)}
-            style={[styles.dateDisplay, { backgroundColor: colors.surface, borderRadius: borderRadius.md, borderWidth: 1, borderColor: showCalendar ? colors.primary : colors.border, paddingVertical: spacing.md, paddingHorizontal: spacing.md }]}
-          >
-            <Ionicons name="calendar" size={20} color={showCalendar ? colors.primary : colors.textSecondary} />
-            <Text style={[styles.dateText, { color: colors.text, fontSize: fontSize.md, fontWeight: fontWeight.medium }]}>{formatDate(date)}</Text>
-            {date.toDateString() === new Date().toDateString() && (
-              <View style={[styles.dateBadge, { backgroundColor: colors.primary + '15', borderRadius: borderRadius.full, paddingHorizontal: spacing.sm, paddingVertical: 2 }]}>
-                <Text style={[{ color: colors.primary, fontSize: fontSize.xs, fontWeight: fontWeight.semibold }]}>Today</Text>
+        <FadeInView delay={320}>
+          <View style={[styles.fieldSection, { marginBottom: spacing.lg }]}>
+            <Text style={[styles.fieldLabel, { color: colors.text, fontSize: fontSize.sm, fontWeight: fontWeight.semibold, marginBottom: spacing.sm }]}>Date</Text>
+            <Pressable
+              onPress={() => setShowCalendar(!showCalendar)}
+              style={[styles.dateDisplay, { backgroundColor: colors.surface, borderRadius: borderRadius.md, borderWidth: 1, borderColor: showCalendar ? colors.primary : colors.border, paddingVertical: spacing.md, paddingHorizontal: spacing.md }]}
+            >
+              <Ionicons name="calendar" size={20} color={showCalendar ? colors.primary : colors.textSecondary} />
+              <Text style={[styles.dateText, { color: colors.text, fontSize: fontSize.md, fontWeight: fontWeight.medium }]}>{formatDate(date)}</Text>
+              {date.toDateString() === new Date().toDateString() && (
+                <View style={[styles.dateBadge, { backgroundColor: colors.primary + '15', borderRadius: borderRadius.full, paddingHorizontal: spacing.sm, paddingVertical: 2 }]}>
+                  <Text style={[{ color: colors.primary, fontSize: fontSize.xs, fontWeight: fontWeight.semibold }]}>Today</Text>
+                </View>
+              )}
+              {date > new Date(new Date().setHours(23, 59, 59)) && (
+                <View style={[styles.dateBadge, { backgroundColor: colors.subscription + '15', borderRadius: borderRadius.full, paddingHorizontal: spacing.sm, paddingVertical: 2 }]}>
+                  <Text style={[{ color: colors.subscription, fontSize: fontSize.xs, fontWeight: fontWeight.semibold }]}>Scheduled</Text>
+                </View>
+              )}
+              <Ionicons name={showCalendar ? 'chevron-up' : 'chevron-down'} size={18} color={colors.textTertiary} />
+            </Pressable>
+            {showCalendar && (
+              <View style={{ marginTop: spacing.sm }}>
+                <CalendarPicker
+                  value={date}
+                  onChange={(d) => {
+                    setDate(d);
+                    setShowCalendar(false);
+                  }}
+                />
               </View>
             )}
-            {date > new Date(new Date().setHours(23, 59, 59)) && (
-              <View style={[styles.dateBadge, { backgroundColor: colors.subscription + '15', borderRadius: borderRadius.full, paddingHorizontal: spacing.sm, paddingVertical: 2 }]}>
-                <Text style={[{ color: colors.subscription, fontSize: fontSize.xs, fontWeight: fontWeight.semibold }]}>Scheduled</Text>
-              </View>
-            )}
-            <Ionicons name={showCalendar ? 'chevron-up' : 'chevron-down'} size={18} color={colors.textTertiary} />
-          </Pressable>
-          {showCalendar && (
-            <View style={{ marginTop: spacing.sm }}>
-              <CalendarPicker
-                value={date}
-                onChange={(d) => {
-                  setDate(d);
-                  setShowCalendar(false);
-                }}
-              />
-            </View>
-          )}
-        </View>
+          </View>
+        </FadeInView>
 
         {/* Actions */}
-        <View style={[styles.actions, { gap: spacing.md }]}>
-          <Button title="Save Expense" onPress={handleSave} loading={saving} disabled={saving} />
-          <Pressable
-            onPress={() => router.back()}
-            style={({ pressed }) => [styles.ghostButton, { opacity: pressed ? 0.6 : 1, paddingVertical: spacing.md }]}
-          >
-            <Text style={[styles.ghostButtonText, { color: colors.textSecondary, fontSize: fontSize.md, fontWeight: fontWeight.semibold }]}>Cancel</Text>
-          </Pressable>
-        </View>
+        <FadeInView delay={400}>
+          <View style={[styles.actions, { gap: spacing.md }]}>
+            <Button title="Save Expense" onPress={handleSave} loading={saving} disabled={saving} />
+            <Pressable
+              onPress={() => router.back()}
+              style={({ pressed }) => [styles.ghostButton, { opacity: pressed ? 0.6 : 1, paddingVertical: spacing.md }]}
+            >
+              <Text style={[styles.ghostButtonText, { color: colors.textSecondary, fontSize: fontSize.md, fontWeight: fontWeight.semibold }]}>Cancel</Text>
+            </Pressable>
+          </View>
+        </FadeInView>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -172,6 +217,7 @@ const styles = StyleSheet.create({
   },
   dateText: { flex: 1 },
   dateBadge: {},
+  switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   actions: { marginTop: 8 },
   ghostButton: { alignItems: 'center', justifyContent: 'center' },
   ghostButtonText: {},

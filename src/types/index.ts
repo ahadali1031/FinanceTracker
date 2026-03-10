@@ -14,6 +14,7 @@ export interface Expense {
   description: string;
   date: Timestamp;
   createdAt: Timestamp;
+  isBusiness?: boolean;
 }
 
 export interface Income {
@@ -24,6 +25,7 @@ export interface Income {
   date: Timestamp;
   isRecurring: boolean;
   createdAt: Timestamp;
+  isBusiness?: boolean;
 }
 
 export type SubscriptionFrequency = "monthly" | "yearly";

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -8,6 +8,7 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Animated,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Timestamp } from 'firebase/firestore';
@@ -31,6 +32,21 @@ function computeNextBillingDate(startDate: Date, frequency: 'monthly' | 'yearly'
     }
   }
   return next;
+}
+
+function FadeInView({ delay = 0, children, style }: { delay?: number; children: React.ReactNode; style?: any }) {
+  const opacity = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(14)).current;
+  useEffect(() => {
+    const t = setTimeout(() => {
+      Animated.parallel([
+        Animated.timing(opacity, { toValue: 1, duration: 350, useNativeDriver: true }),
+        Animated.timing(translateY, { toValue: 0, duration: 350, useNativeDriver: true }),
+      ]).start();
+    }, delay);
+    return () => clearTimeout(t);
+  }, []);
+  return <Animated.View style={[style, { opacity, transform: [{ translateY }] }]}>{children}</Animated.View>;
 }
 
 export default function AddSubscriptionScreen() {
@@ -100,14 +116,17 @@ export default function AddSubscriptionScreen() {
     >
       <ScrollView contentContainerStyle={[styles.content, { padding: spacing.md, paddingBottom: 40 }]} keyboardShouldPersistTaps="handled">
         {/* Amount */}
-        <View style={[styles.amountSection, { marginBottom: spacing.lg }]}>
-          <AmountInput label="Amount" value={amount} onChangeText={(val) => { setAmount(val); if (errors.amount) setErrors((e) => ({ ...e, amount: undefined })); }} />
-          {errors.amount && (
-            <Text style={[styles.errorText, { color: colors.danger, fontSize: fontSize.sm, marginTop: spacing.xs }]}>{errors.amount}</Text>
-          )}
-        </View>
+        <FadeInView delay={0}>
+          <View style={[styles.amountSection, { marginBottom: spacing.lg }]}>
+            <AmountInput label="Amount" value={amount} onChangeText={(val) => { setAmount(val); if (errors.amount) setErrors((e) => ({ ...e, amount: undefined })); }} />
+            {errors.amount && (
+              <Text style={[styles.errorText, { color: colors.danger, fontSize: fontSize.sm, marginTop: spacing.xs }]}>{errors.amount}</Text>
+            )}
+          </View>
+        </FadeInView>
 
         {/* Name */}
+        <FadeInView delay={80}>
         <View style={[styles.fieldSection, { marginBottom: spacing.md }]}>
           <Input
             label="Subscription Name"
@@ -120,7 +139,10 @@ export default function AddSubscriptionScreen() {
           )}
         </View>
 
+        </FadeInView>
+
         {/* Frequency */}
+        <FadeInView delay={160}>
         <View style={[styles.fieldSection, { marginBottom: spacing.md }]}>
           <Text style={[styles.fieldLabel, { color: colors.text, fontSize: fontSize.sm, fontWeight: fontWeight.semibold, marginBottom: spacing.sm }]}>Frequency</Text>
           <View style={[styles.freqRow, { gap: spacing.sm }]}>
@@ -154,7 +176,10 @@ export default function AddSubscriptionScreen() {
           </View>
         </View>
 
+        </FadeInView>
+
         {/* Category */}
+        <FadeInView delay={240}>
         <View style={[styles.fieldSection, { marginBottom: spacing.md }]}>
           <Text style={[styles.fieldLabel, { color: colors.text, fontSize: fontSize.sm, fontWeight: fontWeight.semibold, marginBottom: spacing.sm }]}>Category</Text>
           <CategoryPicker
@@ -167,7 +192,10 @@ export default function AddSubscriptionScreen() {
           )}
         </View>
 
+        </FadeInView>
+
         {/* Start Date */}
+        <FadeInView delay={320}>
         <View style={[styles.fieldSection, { marginBottom: spacing.md }]}>
           <Text style={[styles.fieldLabel, { color: colors.text, fontSize: fontSize.sm, fontWeight: fontWeight.semibold, marginBottom: spacing.sm }]}>Start Date</Text>
           <Pressable
@@ -185,7 +213,10 @@ export default function AddSubscriptionScreen() {
           )}
         </View>
 
+        </FadeInView>
+
         {/* End Date (optional) */}
+        <FadeInView delay={400}>
         <View style={[styles.fieldSection, { marginBottom: spacing.lg }]}>
           <Pressable
             onPress={() => {
@@ -226,16 +257,20 @@ export default function AddSubscriptionScreen() {
           )}
         </View>
 
+        </FadeInView>
+
         {/* Actions */}
-        <View style={[styles.actions, { gap: spacing.md }]}>
-          <Button title="Save Subscription" onPress={handleSave} loading={saving} disabled={saving} />
-          <Pressable
-            onPress={() => router.back()}
-            style={({ pressed }) => [styles.ghostButton, { opacity: pressed ? 0.6 : 1, paddingVertical: spacing.md }]}
-          >
-            <Text style={[styles.ghostButtonText, { color: colors.textSecondary, fontSize: fontSize.md, fontWeight: fontWeight.semibold }]}>Cancel</Text>
-          </Pressable>
-        </View>
+        <FadeInView delay={480}>
+          <View style={[styles.actions, { gap: spacing.md }]}>
+            <Button title="Save Subscription" onPress={handleSave} loading={saving} disabled={saving} />
+            <Pressable
+              onPress={() => router.back()}
+              style={({ pressed }) => [styles.ghostButton, { opacity: pressed ? 0.6 : 1, paddingVertical: spacing.md }]}
+            >
+              <Text style={[styles.ghostButtonText, { color: colors.textSecondary, fontSize: fontSize.md, fontWeight: fontWeight.semibold }]}>Cancel</Text>
+            </Pressable>
+          </View>
+        </FadeInView>
       </ScrollView>
     </KeyboardAvoidingView>
   );

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   StyleSheet,
   View,
@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Animated,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Timestamp } from 'firebase/firestore';
@@ -28,6 +29,21 @@ function computeNextBillingDate(startDate: Date, frequency: 'monthly' | 'yearly'
     else next.setFullYear(next.getFullYear() + 1);
   }
   return next;
+}
+
+function FadeInView({ delay = 0, children, style }: { delay?: number; children: React.ReactNode; style?: any }) {
+  const opacity = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(14)).current;
+  useEffect(() => {
+    const t = setTimeout(() => {
+      Animated.parallel([
+        Animated.timing(opacity, { toValue: 1, duration: 350, useNativeDriver: true }),
+        Animated.timing(translateY, { toValue: 0, duration: 350, useNativeDriver: true }),
+      ]).start();
+    }, delay);
+    return () => clearTimeout(t);
+  }, []);
+  return <Animated.View style={[style, { opacity, transform: [{ translateY }] }]}>{children}</Animated.View>;
 }
 
 export default function SubscriptionDetailScreen() {
@@ -123,16 +139,21 @@ export default function SubscriptionDetailScreen() {
     >
       <ScrollView contentContainerStyle={[styles.content, { padding: spacing.md, paddingBottom: 40 }]} keyboardShouldPersistTaps="handled">
         {/* Amount */}
-        <View style={[styles.amountSection, { marginBottom: spacing.lg }]}>
-          <AmountInput label="Amount" value={amount} onChangeText={setAmount} />
-        </View>
+        <FadeInView delay={0}>
+          <View style={[styles.amountSection, { marginBottom: spacing.lg }]}>
+            <AmountInput label="Amount" value={amount} onChangeText={setAmount} />
+          </View>
+        </FadeInView>
 
         {/* Name */}
-        <View style={[styles.fieldSection, { marginBottom: spacing.md }]}>
-          <Input label="Subscription Name" value={name} onChangeText={setName} />
-        </View>
+        <FadeInView delay={80}>
+          <View style={[styles.fieldSection, { marginBottom: spacing.md }]}>
+            <Input label="Subscription Name" value={name} onChangeText={setName} />
+          </View>
+        </FadeInView>
 
         {/* Frequency */}
+        <FadeInView delay={160}>
         <View style={[styles.fieldSection, { marginBottom: spacing.md }]}>
           <Text style={[styles.fieldLabel, { color: colors.text, fontSize: fontSize.sm, fontWeight: fontWeight.semibold, marginBottom: spacing.sm }]}>Frequency</Text>
           <View style={[styles.freqRow, { gap: spacing.sm }]}>
@@ -160,13 +181,18 @@ export default function SubscriptionDetailScreen() {
           </View>
         </View>
 
+        </FadeInView>
+
         {/* Category */}
+        <FadeInView delay={240}>
         <View style={[styles.fieldSection, { marginBottom: spacing.md }]}>
           <Text style={[styles.fieldLabel, { color: colors.text, fontSize: fontSize.sm, fontWeight: fontWeight.semibold, marginBottom: spacing.sm }]}>Category</Text>
           <CategoryPicker categories={[...SUBSCRIPTION_CATEGORIES]} selected={category} onSelect={setCategory} />
         </View>
+        </FadeInView>
 
         {/* Start Date */}
+        <FadeInView delay={320}>
         <View style={[styles.fieldSection, { marginBottom: spacing.md }]}>
           <Text style={[styles.fieldLabel, { color: colors.text, fontSize: fontSize.sm, fontWeight: fontWeight.semibold, marginBottom: spacing.sm }]}>Start Date</Text>
           {showDateInput ? (
@@ -184,7 +210,10 @@ export default function SubscriptionDetailScreen() {
           )}
         </View>
 
+        </FadeInView>
+
         {/* End Date */}
+        <FadeInView delay={400}>
         <View style={[styles.fieldSection, { marginBottom: spacing.lg }]}>
           <Pressable onPress={() => { setHasEndDate(!hasEndDate); if (!hasEndDate && !endDate) { const d = new Date(startDate); d.setFullYear(d.getFullYear() + 1); setEndDate(d); } }} style={[styles.optionalRow, { paddingVertical: spacing.sm }]}>
             <Ionicons name={hasEndDate ? 'checkbox' : 'square-outline'} size={22} color={hasEndDate ? colors.primary : colors.textTertiary} />
@@ -207,7 +236,10 @@ export default function SubscriptionDetailScreen() {
           )}
         </View>
 
+        </FadeInView>
+
         {/* Actions */}
+        <FadeInView delay={480}>
         <View style={[styles.actions, { gap: spacing.md }]}>
           <Button title="Save Changes" onPress={handleSave} loading={saving} disabled={saving} />
           <Pressable onPress={handleDelete} style={({ pressed }) => [styles.deleteRow, { opacity: pressed ? 0.6 : 1, paddingVertical: spacing.md }]}>
@@ -218,6 +250,7 @@ export default function SubscriptionDetailScreen() {
             <Text style={{ color: colors.textSecondary, fontSize: fontSize.md, fontWeight: fontWeight.semibold }}>Cancel</Text>
           </Pressable>
         </View>
+        </FadeInView>
       </ScrollView>
     </KeyboardAvoidingView>
   );

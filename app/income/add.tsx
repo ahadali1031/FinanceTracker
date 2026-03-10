@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -9,6 +9,7 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Animated,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Timestamp } from 'firebase/firestore';
@@ -18,6 +19,21 @@ import { AmountInput, Button, Input, CalendarPicker } from '@/src/components/ui'
 import { useIncomeStore } from '@/src/stores/incomeStore';
 import { useAuthStore } from '@/src/stores/authStore';
 import { formatDate } from '@/src/utils/date';
+
+function FadeInView({ delay = 0, children, style }: { delay?: number; children: React.ReactNode; style?: any }) {
+  const opacity = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(14)).current;
+  useEffect(() => {
+    const t = setTimeout(() => {
+      Animated.parallel([
+        Animated.timing(opacity, { toValue: 1, duration: 350, useNativeDriver: true }),
+        Animated.timing(translateY, { toValue: 0, duration: 350, useNativeDriver: true }),
+      ]).start();
+    }, delay);
+    return () => clearTimeout(t);
+  }, []);
+  return <Animated.View style={[style, { opacity, transform: [{ translateY }] }]}>{children}</Animated.View>;
+}
 
 export default function AddIncomeScreen() {
   const { colors, spacing, borderRadius, fontSize, fontWeight } = useTheme();
@@ -32,6 +48,7 @@ export default function AddIncomeScreen() {
   const [date, setDate] = useState(new Date());
   const [showCalendar, setShowCalendar] = useState(false);
   const [isRecurring, setIsRecurring] = useState(false);
+  const [isBusiness, setIsBusiness] = useState(false);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<{ amount?: string; source?: string }>({});
 
@@ -61,6 +78,7 @@ export default function AddIncomeScreen() {
         description: description.trim(),
         date: Timestamp.fromDate(date),
         isRecurring,
+        isBusiness,
       });
       router.back();
     } catch (error) {
@@ -81,37 +99,44 @@ export default function AddIncomeScreen() {
     >
       <ScrollView contentContainerStyle={[styles.content, { padding: spacing.md, paddingBottom: 40 }]} keyboardShouldPersistTaps="handled">
         {/* Hero amount */}
-        <View style={[styles.amountSection, { marginBottom: spacing.lg }]}>
-          <AmountInput label="Amount" value={amount} onChangeText={(val) => { setAmount(val); if (errors.amount) setErrors((e) => ({ ...e, amount: undefined })); }} />
-          {errors.amount && (
-            <Text style={[styles.errorText, { color: colors.danger, fontSize: fontSize.sm, marginTop: spacing.xs }]}>{errors.amount}</Text>
-          )}
-        </View>
+        <FadeInView delay={0}>
+          <View style={[styles.amountSection, { marginBottom: spacing.lg }]}>
+            <AmountInput label="Amount" value={amount} onChangeText={(val) => { setAmount(val); if (errors.amount) setErrors((e) => ({ ...e, amount: undefined })); }} />
+            {errors.amount && (
+              <Text style={[styles.errorText, { color: colors.danger, fontSize: fontSize.sm, marginTop: spacing.xs }]}>{errors.amount}</Text>
+            )}
+          </View>
+        </FadeInView>
 
         {/* Source */}
-        <View style={[styles.fieldSection, { marginBottom: spacing.md }]}>
-          <Input
-            label="Source"
-            placeholder="e.g. Salary, Freelance, Dividends"
-            value={source}
-            onChangeText={(val) => { setSource(val); if (errors.source) setErrors((e) => ({ ...e, source: undefined })); }}
-          />
-          {errors.source && (
-            <Text style={[styles.errorText, { color: colors.danger, fontSize: fontSize.sm, marginTop: spacing.xs }]}>{errors.source}</Text>
-          )}
-        </View>
+        <FadeInView delay={80}>
+          <View style={[styles.fieldSection, { marginBottom: spacing.md }]}>
+            <Input
+              label="Source"
+              placeholder="e.g. Salary, Freelance, Dividends"
+              value={source}
+              onChangeText={(val) => { setSource(val); if (errors.source) setErrors((e) => ({ ...e, source: undefined })); }}
+            />
+            {errors.source && (
+              <Text style={[styles.errorText, { color: colors.danger, fontSize: fontSize.sm, marginTop: spacing.xs }]}>{errors.source}</Text>
+            )}
+          </View>
+        </FadeInView>
 
         {/* Description */}
-        <View style={[styles.fieldSection, { marginBottom: spacing.md }]}>
-          <Input
-            label="Description"
-            placeholder="Optional description"
-            value={description}
-            onChangeText={setDescription}
-          />
-        </View>
+        <FadeInView delay={160}>
+          <View style={[styles.fieldSection, { marginBottom: spacing.md }]}>
+            <Input
+              label="Description"
+              placeholder="Optional description"
+              value={description}
+              onChangeText={setDescription}
+            />
+          </View>
+        </FadeInView>
 
         {/* Date */}
+        <FadeInView delay={240}>
         <View style={[styles.fieldSection, { marginBottom: spacing.md }]}>
           <Text style={[styles.fieldLabel, { color: colors.text, fontSize: fontSize.sm, fontWeight: fontWeight.semibold, marginBottom: spacing.sm }]}>Date</Text>
           <Pressable
@@ -144,8 +169,27 @@ export default function AddIncomeScreen() {
             </View>
           )}
         </View>
+        </FadeInView>
+
+        {/* Business toggle */}
+        <FadeInView delay={320}>
+        <View style={[styles.switchRow, { backgroundColor: colors.surface, borderRadius: borderRadius.md, borderWidth: 1, borderColor: colors.border, padding: spacing.md, marginBottom: spacing.sm }]}>
+          <View style={styles.switchLabelWrap}>
+            <Text style={[styles.switchLabel, { color: colors.text, fontSize: fontSize.md, fontWeight: fontWeight.medium }]}>Business Income</Text>
+            <Text style={[styles.switchHint, { color: colors.textTertiary, fontSize: fontSize.xs }]}>Flag as business-related</Text>
+          </View>
+          <Switch
+            value={isBusiness}
+            onValueChange={setIsBusiness}
+            trackColor={{ false: colors.border, true: colors.primary + '60' }}
+            thumbColor={isBusiness ? colors.primary : '#fff'}
+          />
+        </View>
+
+        </FadeInView>
 
         {/* Recurring toggle */}
+        <FadeInView delay={400}>
         <View style={[styles.switchRow, { backgroundColor: colors.surface, borderRadius: borderRadius.md, borderWidth: 1, borderColor: colors.border, padding: spacing.md, marginBottom: spacing.lg }]}>
           <View style={styles.switchLabelWrap}>
             <Text style={[styles.switchLabel, { color: colors.text, fontSize: fontSize.md, fontWeight: fontWeight.medium }]}>Recurring Income</Text>
@@ -159,7 +203,10 @@ export default function AddIncomeScreen() {
           />
         </View>
 
+        </FadeInView>
+
         {/* Actions */}
+        <FadeInView delay={480}>
         <View style={[styles.actions, { gap: spacing.md }]}>
           <Button title="Save Income" onPress={handleSave} loading={saving} disabled={saving} />
           <Pressable
@@ -169,6 +216,7 @@ export default function AddIncomeScreen() {
             <Text style={[styles.ghostButtonText, { color: colors.textSecondary, fontSize: fontSize.md, fontWeight: fontWeight.semibold }]}>Cancel</Text>
           </Pressable>
         </View>
+        </FadeInView>
       </ScrollView>
     </KeyboardAvoidingView>
   );

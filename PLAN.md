@@ -65,16 +65,17 @@
 - [x] Delete transaction adjusts holdings (removes shares/cost basis)
 - [ ] Portfolio allocation donut chart (moved to Phase 5)
 
-## Phase 4.5: Business vs Personal Tagging 🔲
-- [ ] **Data model**: Add `isBusiness: boolean` to Expense and Income types (default `false`)
-- [ ] **Add Expense form**: Business toggle (Switch row)
-- [ ] **Add Income form**: Business toggle (Switch row)
-- [ ] **Edit Expense form**: Business toggle (retroactive flagging)
-- [ ] **Transactions filter bar**: Pill buttons — All | Expenses | Income | Business | Personal
-- [ ] **Business badge**: Show "Business" pill on flagged transaction rows
-- [ ] **Dashboard business summary card**: Business Income, Business Expenses, Net Business Gain for current month
-- [ ] **Dashboard chart**: Business net gains bar/line chart (monthly trend)
-- [ ] **Sort/filter by category**: Category filter dropdown on transactions tab
+## Phase 4.5: Business vs Personal Tagging ✅
+- [x] **Data model**: Add `isBusiness?: boolean` to Expense and Income types (default `false`)
+- [x] **Add Expense form**: Business toggle (Switch row)
+- [x] **Add Income form**: Business toggle (Switch row)
+- [x] **Edit Expense form**: Business toggle (retroactive flagging)
+- [x] **Transactions filter bar**: Pill buttons — All | Expenses | Income | Business | Personal
+- [x] **Business badge**: Show "Business" pill on flagged transaction rows (expenses + income)
+- [x] **Dashboard business summary card**: Business Income, Business Expenses, Net Business Gain for current month
+- [x] **Transactions business summary**: Income/Expenses/Net breakdown card when business transactions exist
+- [ ] **Dashboard chart**: Business net gains bar/line chart (monthly trend) — moved to Phase 5
+- [ ] **Sort/filter by category**: Category filter dropdown on transactions tab — moved to Phase 5
 
 ### Implementation details:
 - Existing Firestore docs without `isBusiness` treated as `false` (no migration needed)
@@ -99,6 +100,11 @@
   - [ ] Set monthly limit per category
   - [ ] Progress bars (green → yellow → red)
   - [ ] Summary: total spent, remaining, vs last month
+- [ ] **Business vs Personal Charts**:
+  - [ ] Side-by-side bar chart: personal vs business expenses per month (last 6 months)
+  - [ ] Donut chart: business expense breakdown by category
+  - [ ] Business income vs expense trend line (monthly)
+  - [ ] Toggle between personal-only and business-only views
 - [ ] **Investment Portfolio Charts**:
   - [ ] Donut chart for allocation (by holding, by account type)
   - [ ] Line chart for performance over time

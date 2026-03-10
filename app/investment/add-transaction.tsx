@@ -48,7 +48,7 @@ function FadeInView({ delay = 0, children, style }: { delay?: number; children: 
 
 const TRANSACTION_TYPES: { id: InvestmentTransactionType; label: string; icon: string; color: string }[] = [
   { id: 'buy', label: 'Buy', icon: 'arrow-down-circle', color: '#10B981' },
-  { id: 'sell', label: 'Sell', icon: 'arrow-up-circle', color: '#EF4444' },
+  { id: 'sell', label: 'Sell', icon: 'arrow-up-circle', color: '#F43F5E' },
   { id: 'dividend', label: 'Dividend', icon: 'cash', color: '#F59E0B' },
 ];
 

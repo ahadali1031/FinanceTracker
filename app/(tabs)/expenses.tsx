@@ -22,6 +22,43 @@ import { EXPENSE_CATEGORIES } from '@/src/utils/categories';
 import { Ionicons } from '@expo/vector-icons';
 import type { Expense, Income } from '@/src/types';
 
+function FadeInView({
+  delay = 0,
+  children,
+  style,
+}: {
+  delay?: number;
+  children: React.ReactNode;
+  style?: any;
+}) {
+  const opacity = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(12)).current;
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      Animated.parallel([
+        Animated.timing(opacity, {
+          toValue: 1,
+          duration: 350,
+          useNativeDriver: true,
+        }),
+        Animated.timing(translateY, {
+          toValue: 0,
+          duration: 350,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }, delay);
+    return () => clearTimeout(timeout);
+  }, []);
+
+  return (
+    <Animated.View style={[style, { opacity, transform: [{ translateY }] }]}>
+      {children}
+    </Animated.View>
+  );
+}
+
 const categoryMap = new Map(EXPENSE_CATEGORIES.map((c) => [c.id, c]));
 
 const CATEGORY_ACCENT_COLORS: Record<string, string> = {
@@ -89,9 +126,16 @@ function AnimatedTransactionRow({
             <Pressable style={styles.rowLeft} onPress={onPress}>
               <Ionicons name={(cat?.icon ?? 'ellipsis-horizontal') as any} size={24} color={accentColor} style={styles.rowIcon} />
               <View style={styles.rowText}>
-                <Text style={[styles.rowTitle, { color: colors.text, fontSize: fontSize.md, fontWeight: fontWeight.bold }]} numberOfLines={1}>
-                  {expense.description || cat?.name || 'Expense'}
-                </Text>
+                <View style={styles.titleRow}>
+                  <Text style={[styles.rowTitle, { color: colors.text, fontSize: fontSize.md, fontWeight: fontWeight.bold }]} numberOfLines={1}>
+                    {expense.description || cat?.name || 'Expense'}
+                  </Text>
+                  {expense.isBusiness && (
+                    <View style={[styles.badge, { backgroundColor: colors.primary + '18', borderRadius: borderRadius.full, paddingHorizontal: spacing.sm, paddingVertical: 2 }]}>
+                      <Text style={[styles.badgeText, { color: colors.primary, fontSize: fontSize.xs, fontWeight: fontWeight.semibold }]}>Business</Text>
+                    </View>
+                  )}
+                </View>
                 <Text style={[styles.rowSubtitle, { color: colors.textSecondary, fontSize: fontSize.sm }]}>
                   {cat?.name ?? expense.category}
                 </Text>
@@ -129,9 +173,14 @@ function AnimatedTransactionRow({
                 <Text style={[styles.rowTitle, { color: colors.text, fontSize: fontSize.md, fontWeight: fontWeight.bold }]} numberOfLines={1}>
                   {income.source}
                 </Text>
-                {income.isRecurring && (
+                {income.isBusiness && (
                   <View style={[styles.badge, { backgroundColor: colors.primary + '18', borderRadius: borderRadius.full, paddingHorizontal: spacing.sm, paddingVertical: 2 }]}>
-                    <Text style={[styles.badgeText, { color: colors.primary, fontSize: fontSize.xs, fontWeight: fontWeight.semibold }]}>
+                    <Text style={[styles.badgeText, { color: colors.primary, fontSize: fontSize.xs, fontWeight: fontWeight.semibold }]}>Business</Text>
+                  </View>
+                )}
+                {income.isRecurring && (
+                  <View style={[styles.badge, { backgroundColor: colors.income + '18', borderRadius: borderRadius.full, paddingHorizontal: spacing.sm, paddingVertical: 2 }]}>
+                    <Text style={[styles.badgeText, { color: colors.income, fontSize: fontSize.xs, fontWeight: fontWeight.semibold }]}>
                       Recurring
                     </Text>
                   </View>
@@ -162,6 +211,21 @@ function AnimatedTransactionRow({
   );
 }
 
+type TypeFilter = 'all' | 'expenses' | 'income';
+type BusinessFilter = 'all' | 'business' | 'personal';
+
+const TYPE_OPTIONS: { id: TypeFilter; label: string }[] = [
+  { id: 'all', label: 'All Transactions' },
+  { id: 'expenses', label: 'Expenses Only' },
+  { id: 'income', label: 'Income Only' },
+];
+
+const BIZ_OPTIONS: { id: BusinessFilter; label: string }[] = [
+  { id: 'all', label: 'All' },
+  { id: 'business', label: 'Business' },
+  { id: 'personal', label: 'Personal' },
+];
+
 export default function TransactionsScreen() {
   const { isDark, colors, spacing, borderRadius, fontSize, fontWeight } = useTheme();
   const router = useRouter();
@@ -171,6 +235,10 @@ export default function TransactionsScreen() {
   const { incomes, loading: incLoading, subscribeToIncome, deleteIncome } = useIncomeStore();
 
   const [selectedMonth, setSelectedMonth] = useState(() => new Date());
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
+  const [bizFilter, setBizFilter] = useState<BusinessFilter>('all');
+  const [showTypeDropdown, setShowTypeDropdown] = useState(false);
+  const [showBizDropdown, setShowBizDropdown] = useState(false);
 
   useEffect(() => {
     if (!user?.uid) return;
@@ -181,30 +249,43 @@ export default function TransactionsScreen() {
 
   const loading = expLoading || incLoading;
 
-  const { monthlyExpenses, monthlyIncome, flatData } = useMemo(() => {
+  const { monthlyExpenses, monthlyIncome, businessExpenses, businessIncome, flatData } = useMemo(() => {
     const year = selectedMonth.getFullYear();
     const month = selectedMonth.getMonth();
 
     // Build unified transaction list
-    const transactions: Transaction[] = [];
+    const allTransactions: Transaction[] = [];
 
     let expTotal = 0;
+    let bizExpTotal = 0;
     for (const e of expenses) {
       const d = e.date.toDate();
       if (d.getFullYear() === year && d.getMonth() === month) {
         expTotal += e.amount;
-        transactions.push({ type: 'expense', data: e, dateMs: d.getTime() });
+        if (e.isBusiness) bizExpTotal += e.amount;
+        allTransactions.push({ type: 'expense', data: e, dateMs: d.getTime() });
       }
     }
 
     let incTotal = 0;
+    let bizIncTotal = 0;
     for (const i of incomes) {
       const d = i.date.toDate();
       if (d.getFullYear() === year && d.getMonth() === month) {
         incTotal += i.amount;
-        transactions.push({ type: 'income', data: i, dateMs: d.getTime() });
+        if (i.isBusiness) bizIncTotal += i.amount;
+        allTransactions.push({ type: 'income', data: i, dateMs: d.getTime() });
       }
     }
+
+    // Apply filters
+    const transactions = allTransactions.filter((t) => {
+      if (typeFilter === 'expenses' && t.type !== 'expense') return false;
+      if (typeFilter === 'income' && t.type !== 'income') return false;
+      if (bizFilter === 'business' && !t.data.isBusiness) return false;
+      if (bizFilter === 'personal' && t.data.isBusiness) return false;
+      return true;
+    });
 
     // Sort by date descending
     transactions.sort((a, b) => b.dateMs - a.dateMs);
@@ -232,8 +313,8 @@ export default function TransactionsScreen() {
       }
     }
 
-    return { monthlyExpenses: expTotal, monthlyIncome: incTotal, flatData: items };
-  }, [expenses, incomes, selectedMonth]);
+    return { monthlyExpenses: expTotal, monthlyIncome: incTotal, businessExpenses: bizExpTotal, businessIncome: bizIncTotal, flatData: items };
+  }, [expenses, incomes, selectedMonth, typeFilter, bizFilter]);
 
   const handlePrevMonth = useCallback(() => {
     setSelectedMonth((prev) => {
@@ -326,6 +407,12 @@ export default function TransactionsScreen() {
     [colors, spacing, borderRadius, fontSize, fontWeight, router, handleDeleteExpense, handleDeleteIncome],
   );
 
+  // Close dropdowns when tapping outside
+  const closeDropdowns = useCallback(() => {
+    setShowTypeDropdown(false);
+    setShowBizDropdown(false);
+  }, []);
+
   if (loading) {
     return (
       <View style={[styles.center, { backgroundColor: colors.background }]}>
@@ -336,71 +423,179 @@ export default function TransactionsScreen() {
 
   const netCash = monthlyIncome - monthlyExpenses;
 
-  return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+  const ListHeader = (
+    <Pressable onPress={closeDropdowns} style={{ zIndex: 1 }}>
       {/* Summary cards */}
-      <View style={[styles.summaryRow, { marginHorizontal: spacing.md, marginTop: spacing.md, gap: spacing.sm }]}>
-        {/* Income card */}
-        <View style={[styles.summaryCard, { backgroundColor: colors.surface, borderRadius: borderRadius.lg, borderColor: colors.border, borderWidth: isDark ? 1 : 0 }]}>
-          <View style={[styles.summaryAccent, { backgroundColor: colors.income, borderTopLeftRadius: borderRadius.lg, borderBottomLeftRadius: borderRadius.lg }]} />
-          <View style={[styles.summaryContent, { padding: spacing.md }]}>
-            <Text style={[styles.summaryLabel, { color: colors.textSecondary, fontSize: fontSize.xs }]}>Income</Text>
-            <Text style={[styles.summaryAmount, { color: colors.income, fontSize: fontSize.lg, fontWeight: fontWeight.bold }]}>
-              {formatCurrency(monthlyIncome)}
-            </Text>
+      <FadeInView delay={100}>
+        <View style={[styles.summaryRow, { marginHorizontal: spacing.md, marginTop: spacing.md, gap: spacing.sm }]}>
+          <View style={[styles.summaryCard, { backgroundColor: colors.surface, borderRadius: borderRadius.lg, borderColor: colors.border, borderWidth: isDark ? 1 : 0 }]}>
+            <View style={[styles.summaryAccent, { backgroundColor: colors.income, borderTopLeftRadius: borderRadius.lg, borderBottomLeftRadius: borderRadius.lg }]} />
+            <View style={[styles.summaryContent, { padding: spacing.md }]}>
+              <Text style={[styles.summaryLabel, { color: colors.textSecondary, fontSize: fontSize.xs }]}>Income</Text>
+              <Text style={[styles.summaryAmount, { color: colors.income, fontSize: fontSize.lg, fontWeight: fontWeight.bold }]}>
+                {formatCurrency(monthlyIncome)}
+              </Text>
+            </View>
+          </View>
+          <View style={[styles.summaryCard, { backgroundColor: colors.surface, borderRadius: borderRadius.lg, borderColor: colors.border, borderWidth: isDark ? 1 : 0 }]}>
+            <View style={[styles.summaryAccent, { backgroundColor: colors.expense, borderTopLeftRadius: borderRadius.lg, borderBottomLeftRadius: borderRadius.lg }]} />
+            <View style={[styles.summaryContent, { padding: spacing.md }]}>
+              <Text style={[styles.summaryLabel, { color: colors.textSecondary, fontSize: fontSize.xs }]}>Expenses</Text>
+              <Text style={[styles.summaryAmount, { color: colors.expense, fontSize: fontSize.lg, fontWeight: fontWeight.bold }]}>
+                {formatCurrency(monthlyExpenses)}
+              </Text>
+            </View>
           </View>
         </View>
-        {/* Expenses card */}
-        <View style={[styles.summaryCard, { backgroundColor: colors.surface, borderRadius: borderRadius.lg, borderColor: colors.border, borderWidth: isDark ? 1 : 0 }]}>
-          <View style={[styles.summaryAccent, { backgroundColor: colors.expense, borderTopLeftRadius: borderRadius.lg, borderBottomLeftRadius: borderRadius.lg }]} />
-          <View style={[styles.summaryContent, { padding: spacing.md }]}>
-            <Text style={[styles.summaryLabel, { color: colors.textSecondary, fontSize: fontSize.xs }]}>Expenses</Text>
-            <Text style={[styles.summaryAmount, { color: colors.expense, fontSize: fontSize.lg, fontWeight: fontWeight.bold }]}>
-              {formatCurrency(monthlyExpenses)}
-            </Text>
-          </View>
-        </View>
-      </View>
+      </FadeInView>
 
       {/* Net cash flow */}
-      <View style={[styles.netCashRow, { marginHorizontal: spacing.md, marginTop: spacing.sm }]}>
-        <Text style={[styles.netCashLabel, { color: colors.textSecondary, fontSize: fontSize.sm }]}>Net Cash Flow</Text>
-        <Text style={[styles.netCashAmount, { color: netCash >= 0 ? colors.income : colors.expense, fontSize: fontSize.md, fontWeight: fontWeight.bold }]}>
-          {netCash >= 0 ? '+' : ''}{formatCurrency(netCash)}
-        </Text>
-      </View>
+      <FadeInView delay={150}>
+        <View style={[styles.netCashRow, { marginHorizontal: spacing.md, marginTop: spacing.sm }]}>
+          <Text style={[styles.netCashLabel, { color: colors.textSecondary, fontSize: fontSize.sm }]}>Net Cash Flow</Text>
+          <Text style={[styles.netCashAmount, { color: netCash >= 0 ? colors.income : colors.expense, fontSize: fontSize.md, fontWeight: fontWeight.bold }]}>
+            {netCash >= 0 ? '+' : ''}{formatCurrency(netCash)}
+          </Text>
+        </View>
+      </FadeInView>
+
+      {/* Filter dropdowns — overlays, not push-down */}
+      <FadeInView delay={200}>
+        <View style={[styles.filterRow, { marginHorizontal: spacing.md, marginTop: spacing.sm, gap: spacing.sm, zIndex: 100 }]}>
+          {/* Type filter */}
+          <View style={{ flex: 1, zIndex: 101 }}>
+            <Pressable
+              onPress={() => { setShowTypeDropdown(!showTypeDropdown); setShowBizDropdown(false); }}
+              style={[styles.dropdownButton, { backgroundColor: colors.surface, borderRadius: borderRadius.md, borderWidth: 1, borderColor: showTypeDropdown ? colors.primary : colors.border, paddingVertical: spacing.sm, paddingHorizontal: spacing.md }]}
+            >
+              <Text style={{ color: colors.text, fontSize: fontSize.sm, flex: 1 }}>
+                {TYPE_OPTIONS.find((o) => o.id === typeFilter)?.label}
+              </Text>
+              <Ionicons name={showTypeDropdown ? 'chevron-up' : 'chevron-down'} size={16} color={colors.textTertiary} />
+            </Pressable>
+            {showTypeDropdown && (
+              <View style={[styles.dropdown, { backgroundColor: colors.surfaceElevated ?? colors.surface, borderRadius: borderRadius.md, borderWidth: 1, borderColor: colors.border, marginTop: 4 }]}>
+                {TYPE_OPTIONS.map((o) => (
+                  <Pressable
+                    key={o.id}
+                    onPress={() => { setTypeFilter(o.id); setShowTypeDropdown(false); }}
+                    style={({ pressed }) => [styles.dropdownItem, { backgroundColor: pressed ? colors.border + '40' : typeFilter === o.id ? colors.primary + '10' : 'transparent', paddingVertical: spacing.sm, paddingHorizontal: spacing.md }]}
+                  >
+                    <Text style={{ color: typeFilter === o.id ? colors.primary : colors.text, fontSize: fontSize.sm, fontWeight: typeFilter === o.id ? fontWeight.semibold : fontWeight.normal }}>
+                      {o.label}
+                    </Text>
+                    {typeFilter === o.id && <Ionicons name="checkmark" size={16} color={colors.primary} />}
+                  </Pressable>
+                ))}
+              </View>
+            )}
+          </View>
+
+          {/* Business/Personal filter */}
+          <View style={{ flex: 1, zIndex: 101 }}>
+            <Pressable
+              onPress={() => { setShowBizDropdown(!showBizDropdown); setShowTypeDropdown(false); }}
+              style={[styles.dropdownButton, { backgroundColor: colors.surface, borderRadius: borderRadius.md, borderWidth: 1, borderColor: showBizDropdown ? colors.primary : colors.border, paddingVertical: spacing.sm, paddingHorizontal: spacing.md }]}
+            >
+              <Text style={{ color: colors.text, fontSize: fontSize.sm, flex: 1 }}>
+                {BIZ_OPTIONS.find((o) => o.id === bizFilter)?.label}
+              </Text>
+              <Ionicons name={showBizDropdown ? 'chevron-up' : 'chevron-down'} size={16} color={colors.textTertiary} />
+            </Pressable>
+            {showBizDropdown && (
+              <View style={[styles.dropdown, { backgroundColor: colors.surfaceElevated ?? colors.surface, borderRadius: borderRadius.md, borderWidth: 1, borderColor: colors.border, marginTop: 4 }]}>
+                {BIZ_OPTIONS.map((o) => (
+                  <Pressable
+                    key={o.id}
+                    onPress={() => { setBizFilter(o.id); setShowBizDropdown(false); }}
+                    style={({ pressed }) => [styles.dropdownItem, { backgroundColor: pressed ? colors.border + '40' : bizFilter === o.id ? colors.primary + '10' : 'transparent', paddingVertical: spacing.sm, paddingHorizontal: spacing.md }]}
+                  >
+                    <Text style={{ color: bizFilter === o.id ? colors.primary : colors.text, fontSize: fontSize.sm, fontWeight: bizFilter === o.id ? fontWeight.semibold : fontWeight.normal }}>
+                      {o.label}
+                    </Text>
+                    {bizFilter === o.id && <Ionicons name="checkmark" size={16} color={colors.primary} />}
+                  </Pressable>
+                ))}
+              </View>
+            )}
+          </View>
+        </View>
+      </FadeInView>
+
+      {/* Business summary — show when business filter or has business transactions */}
+      {(businessExpenses > 0 || businessIncome > 0) && (
+        <FadeInView delay={250}>
+          <View style={[styles.businessSummary, { marginHorizontal: spacing.md, marginTop: spacing.sm, marginBottom: spacing.sm, backgroundColor: colors.surface, borderRadius: borderRadius.lg, borderColor: colors.border, borderWidth: isDark ? 1 : 0, padding: spacing.md }]}>
+            <View style={[styles.businessAccent, { backgroundColor: colors.primary, borderTopLeftRadius: borderRadius.lg, borderBottomLeftRadius: borderRadius.lg }]} />
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: colors.textSecondary, fontSize: fontSize.xs, marginBottom: 4 }}>Business This Month</Text>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <View>
+                  <Text style={{ color: colors.textTertiary, fontSize: fontSize.xs }}>Income</Text>
+                  <Text style={{ color: colors.income, fontSize: fontSize.md, fontWeight: fontWeight.bold }}>{formatCurrency(businessIncome)}</Text>
+                </View>
+                <View>
+                  <Text style={{ color: colors.textTertiary, fontSize: fontSize.xs }}>Expenses</Text>
+                  <Text style={{ color: colors.expense, fontSize: fontSize.md, fontWeight: fontWeight.bold }}>{formatCurrency(businessExpenses)}</Text>
+                </View>
+                <View>
+                  <Text style={{ color: colors.textTertiary, fontSize: fontSize.xs }}>Net</Text>
+                  <Text style={{ color: businessIncome - businessExpenses >= 0 ? colors.income : colors.expense, fontSize: fontSize.md, fontWeight: fontWeight.bold }}>
+                    {businessIncome - businessExpenses >= 0 ? '+' : ''}{formatCurrency(businessIncome - businessExpenses)}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          </View>
+        </FadeInView>
+      )}
 
       {/* Month selector */}
-      <View style={[styles.monthSelector, { paddingVertical: spacing.md }]}>
-        <Pressable
-          onPress={handlePrevMonth}
-          style={({ pressed }) => [styles.monthArrow, { backgroundColor: pressed ? colors.border : colors.surface, borderRadius: borderRadius.full, borderWidth: 1, borderColor: colors.border }]}
-        >
-          <Text style={[styles.monthArrowText, { color: colors.primary, fontSize: fontSize.lg }]}>{'\u2039'}</Text>
-        </Pressable>
-        <Text style={[styles.monthLabel, { color: colors.text, fontSize: fontSize.lg, fontWeight: fontWeight.semibold }]}>
-          {formatMonthYear(selectedMonth)}
-        </Text>
-        <Pressable
-          onPress={handleNextMonth}
-          style={({ pressed }) => [styles.monthArrow, { backgroundColor: pressed ? colors.border : colors.surface, borderRadius: borderRadius.full, borderWidth: 1, borderColor: colors.border }]}
-        >
-          <Text style={[styles.monthArrowText, { color: colors.primary, fontSize: fontSize.lg }]}>{'\u203A'}</Text>
-        </Pressable>
-      </View>
+      <FadeInView delay={300}>
+        <View style={[styles.monthSelector, { paddingVertical: spacing.md }]}>
+          <Pressable
+            onPress={handlePrevMonth}
+            style={({ pressed }) => [styles.monthArrow, { backgroundColor: pressed ? colors.border : colors.surface, borderRadius: borderRadius.full, borderWidth: 1, borderColor: colors.border }]}
+          >
+            <Text style={[styles.monthArrowText, { color: colors.primary, fontSize: fontSize.lg }]}>{'\u2039'}</Text>
+          </Pressable>
+          <Text style={[styles.monthLabel, { color: colors.text, fontSize: fontSize.lg, fontWeight: fontWeight.semibold }]}>
+            {formatMonthYear(selectedMonth)}
+          </Text>
+          <Pressable
+            onPress={handleNextMonth}
+            style={({ pressed }) => [styles.monthArrow, { backgroundColor: pressed ? colors.border : colors.surface, borderRadius: borderRadius.full, borderWidth: 1, borderColor: colors.border }]}
+          >
+            <Text style={[styles.monthArrowText, { color: colors.primary, fontSize: fontSize.lg }]}>{'\u203A'}</Text>
+          </Pressable>
+        </View>
+      </FadeInView>
+    </Pressable>
+  );
 
-      {/* Transaction list */}
+  return (
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       {flatData.length === 0 ? (
-        <EmptyState
-          icon="swap-horizontal-outline"
-          title="No transactions yet"
-          subtitle="Tap the + button to add your first expense or income for this month."
+        <FlatList
+          data={[]}
+          renderItem={null}
+          ListHeaderComponent={ListHeader}
+          ListEmptyComponent={
+            <EmptyState
+              icon="swap-horizontal-outline"
+              title="No transactions yet"
+              subtitle="Tap the + button to add your first expense or income for this month."
+            />
+          }
+          contentContainerStyle={{ paddingBottom: 100 }}
+          showsVerticalScrollIndicator={false}
         />
       ) : (
         <FlatList
           data={flatData}
           keyExtractor={(item) => item.key}
           renderItem={renderItem}
+          ListHeaderComponent={ListHeader}
           contentContainerStyle={{ paddingBottom: 100 }}
           showsVerticalScrollIndicator={false}
         />
@@ -447,6 +642,12 @@ const styles = StyleSheet.create({
   },
   netCashLabel: {},
   netCashAmount: {},
+  filterRow: { flexDirection: 'row' },
+  dropdownButton: { flexDirection: 'row', alignItems: 'center' },
+  dropdown: { position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 999, elevation: 5, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 6 },
+  dropdownItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  businessSummary: { flexDirection: 'row', overflow: 'hidden' },
+  businessAccent: { width: 4 },
   monthSelector: {
     flexDirection: 'row',
     alignItems: 'center',

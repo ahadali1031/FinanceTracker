@@ -1,33 +1,33 @@
 export const theme = {
   colors: {
-    // Green-based primary (inspired by Mint, Robinhood, cash apps)
-    primary: '#00B67A',          // Rich green — main brand
-    primaryLight: '#34D399',     // Lighter green for dark mode
-    primaryMuted: '#E6F9F1',     // Very light green bg tint (light mode)
-    primaryMutedDark: '#0A2E1F', // Very dark green bg tint (dark mode)
-    secondary: '#6366F1',        // Indigo accent for contrast
+    // Emerald Premium palette
+    primary: '#10B981',              // Emerald-500 — cool, premium green
+    primaryLight: '#34D399',         // Emerald-400 — dark mode primary
+    primaryMuted: '#ECFDF5',         // Emerald-50 — light tint bg
+    primaryMutedDark: '#052E1C',     // Deep forest — dark tint bg
+    secondary: '#6366F1',            // Indigo accent for contrast
 
-    background: { light: '#F5F7F6', dark: '#0A0F0D' },
-    surface: { light: '#FFFFFF', dark: '#141E1A' },
-    surfaceElevated: { light: '#FFFFFF', dark: '#1A2A24' },
-    text: { light: '#111827', dark: '#F0F4F2' },
-    textSecondary: { light: '#6B7280', dark: '#9CA3AF' },
-    textTertiary: { light: '#9CA3AF', dark: '#5C6560' },
-    border: { light: '#E2E8E5', dark: '#1E2E28' },
+    background: { light: '#F9FAFB', dark: '#030712' },       // Gray-50 / Gray-950
+    surface: { light: '#FFFFFF', dark: '#111827' },           // White / Gray-900
+    surfaceElevated: { light: '#F3F4F6', dark: '#1F2937' },   // Gray-100 / Gray-800
+    text: { light: '#111827', dark: '#F9FAFB' },              // Gray-900 / Gray-50
+    textSecondary: { light: '#6B7280', dark: '#9CA3AF' },     // Gray-500 / Gray-400
+    textTertiary: { light: '#9CA3AF', dark: '#4B5563' },      // Gray-400 / Gray-600
+    border: { light: '#E5E7EB', dark: '#1F2937' },            // Gray-200 / Gray-800
 
     // Semantic colors
-    expense: '#EF4444',          // Red
-    income: '#00B67A',           // Same as primary (green = money in)
-    investment: '#3B82F6',       // Blue
-    subscription: '#F59E0B',     // Amber
-    savings: '#06B6D4',          // Cyan
-    danger: '#EF4444',
-    warning: '#F59E0B',
-    success: '#00B67A',
+    expense: '#F43F5E',              // Rose-500 — warmer, modern red
+    income: '#10B981',               // Emerald-500 — same as primary
+    investment: '#3B82F6',           // Blue-500
+    subscription: '#F59E0B',         // Amber-500
+    savings: '#06B6D4',              // Cyan-500
+    danger: '#F43F5E',               // Rose-500
+    warning: '#F59E0B',              // Amber-500
+    success: '#10B981',              // Emerald-500
 
     // Category accent palette
     categoryColors: [
-      '#EF4444', '#F59E0B', '#06B6D4', '#8B5CF6',
+      '#F43F5E', '#F59E0B', '#06B6D4', '#8B5CF6',
       '#EC4899', '#14B8A6', '#F97316', '#6366F1', '#64748B',
     ],
   },

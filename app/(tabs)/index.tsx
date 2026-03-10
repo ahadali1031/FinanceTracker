@@ -155,7 +155,7 @@ export default function DashboardScreen() {
   }, [user?.uid]);
 
   // Compute current month totals and net worth
-  const { monthlyExpenses, monthlyIncome, netWorth, investmentTotal } = useMemo(() => {
+  const { monthlyExpenses, monthlyIncome, netWorth, investmentTotal, businessExpenses, businessIncome } = useMemo(() => {
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
     const year = now.getFullYear();
@@ -163,24 +163,28 @@ export default function DashboardScreen() {
 
     let expMonthly = 0;
     let expTotal = 0;
+    let bizExp = 0;
     for (const e of expenses) {
       const d = e.date.toDate();
       if (d <= today) {
         expTotal += e.amount;
         if (d.getFullYear() === year && d.getMonth() === month) {
           expMonthly += e.amount;
+          if (e.isBusiness) bizExp += e.amount;
         }
       }
     }
 
     let incMonthly = 0;
     let incTotal = 0;
+    let bizInc = 0;
     for (const i of incomes) {
       const d = i.date.toDate();
       if (d <= today) {
         incTotal += i.amount;
         if (d.getFullYear() === year && d.getMonth() === month) {
           incMonthly += i.amount;
+          if (i.isBusiness) bizInc += i.amount;
         }
       }
     }
@@ -197,7 +201,7 @@ export default function DashboardScreen() {
 
     const nw = savings + investTotal + incTotal - expTotal;
 
-    return { monthlyExpenses: expMonthly, monthlyIncome: incMonthly, netWorth: nw, investmentTotal: investTotal };
+    return { monthlyExpenses: expMonthly, monthlyIncome: incMonthly, netWorth: nw, investmentTotal: investTotal, businessExpenses: bizExp, businessIncome: bizInc };
   }, [expenses, incomes, getTotalSavings, investmentAccounts, investmentHoldings]);
 
   const monthlySubscriptions = useMemo(() => getMonthlyTotal(), [subscriptions]);
@@ -340,6 +344,58 @@ export default function DashboardScreen() {
         </Pressable>
       </FadeInView>
 
+      {/* Business Summary — only show if there are business transactions */}
+      {(businessExpenses > 0 || businessIncome > 0) && (
+        <FadeInView delay={450}>
+          <Pressable
+            onPress={() => router.push('/(tabs)/expenses' as any)}
+            style={[
+              styles.businessCard,
+              {
+                backgroundColor: colors.surface,
+                borderRadius: borderRadius.lg,
+              },
+            ]}
+          >
+            <View
+              style={[
+                styles.accentBar,
+                {
+                  backgroundColor: colors.primary,
+                  borderRadius: borderRadius.sm,
+                },
+              ]}
+            />
+            <View style={styles.summaryCardContent}>
+              <View style={styles.summaryLabelRow}>
+                <Text style={[styles.summaryLabel, { color: colors.textSecondary, fontSize: fontSize.xs }]}>
+                  Business This Month
+                </Text>
+                <Ionicons name="chevron-forward" size={14} color={colors.textTertiary} />
+              </View>
+              <View style={styles.businessRow}>
+                <View>
+                  <Text style={{ color: colors.income, fontSize: fontSize.lg, fontWeight: fontWeight.bold }}>{formatCurrency(businessIncome)}</Text>
+                  <Text style={{ color: colors.textTertiary, fontSize: fontSize.xs }}>Income</Text>
+                </View>
+                <Text style={{ color: colors.textTertiary, fontSize: fontSize.lg }}>−</Text>
+                <View>
+                  <Text style={{ color: colors.expense, fontSize: fontSize.lg, fontWeight: fontWeight.bold }}>{formatCurrency(businessExpenses)}</Text>
+                  <Text style={{ color: colors.textTertiary, fontSize: fontSize.xs }}>Expenses</Text>
+                </View>
+                <Text style={{ color: colors.textTertiary, fontSize: fontSize.lg }}>=</Text>
+                <View>
+                  <Text style={{ color: businessIncome - businessExpenses >= 0 ? colors.income : colors.expense, fontSize: fontSize.lg, fontWeight: fontWeight.bold }}>
+                    {formatCurrency(businessIncome - businessExpenses)}
+                  </Text>
+                  <Text style={{ color: colors.textTertiary, fontSize: fontSize.xs }}>Net</Text>
+                </View>
+              </View>
+            </View>
+          </Pressable>
+        </FadeInView>
+      )}
+
       <View style={{ height: 100 }} />
     </ScrollView>
   );
@@ -400,7 +456,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
+    marginBottom: 12,
+    overflow: 'hidden',
+  },
+  businessCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
     marginBottom: 24,
     overflow: 'hidden',
+  },
+  businessRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
   },
 });

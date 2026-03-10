@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   StyleSheet,
   View,
@@ -9,6 +9,8 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Switch,
+  Animated,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Timestamp } from 'firebase/firestore';
@@ -19,6 +21,21 @@ import { useExpenseStore } from '@/src/stores/expenseStore';
 import { useAuthStore } from '@/src/stores/authStore';
 import { EXPENSE_CATEGORIES } from '@/src/utils/categories';
 import { formatDate } from '@/src/utils/date';
+
+function FadeInView({ delay = 0, children, style }: { delay?: number; children: React.ReactNode; style?: any }) {
+  const opacity = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(14)).current;
+  useEffect(() => {
+    const t = setTimeout(() => {
+      Animated.parallel([
+        Animated.timing(opacity, { toValue: 1, duration: 350, useNativeDriver: true }),
+        Animated.timing(translateY, { toValue: 0, duration: 350, useNativeDriver: true }),
+      ]).start();
+    }, delay);
+    return () => clearTimeout(t);
+  }, []);
+  return <Animated.View style={[style, { opacity, transform: [{ translateY }] }]}>{children}</Animated.View>;
+}
 
 export default function EditExpenseScreen() {
   const { colors, spacing, borderRadius, fontSize, fontWeight } = useTheme();
@@ -34,6 +51,7 @@ export default function EditExpenseScreen() {
   const [category, setCategory] = useState('');
   const [description, setDescription] = useState('');
   const [date, setDate] = useState(new Date());
+  const [isBusiness, setIsBusiness] = useState(false);
   const [saving, setSaving] = useState(false);
   const [initialized, setInitialized] = useState(false);
   const [errors, setErrors] = useState<{ amount?: string; category?: string }>({});
@@ -44,6 +62,7 @@ export default function EditExpenseScreen() {
       setCategory(expense.category);
       setDescription(expense.description);
       setDate(expense.date.toDate());
+      setIsBusiness(expense.isBusiness ?? false);
       setInitialized(true);
     }
   }, [expense, initialized]);
@@ -73,6 +92,7 @@ export default function EditExpenseScreen() {
         category,
         description: description.trim(),
         date: Timestamp.fromDate(date),
+        isBusiness,
       });
       router.back();
     } catch (error) {
@@ -119,56 +139,82 @@ export default function EditExpenseScreen() {
     >
       <ScrollView contentContainerStyle={[styles.content, { padding: spacing.md, paddingBottom: 40 }]} keyboardShouldPersistTaps="handled">
         {/* Hero amount */}
-        <View style={[styles.amountSection, { marginBottom: spacing.lg }]}>
-          <AmountInput label="Amount" value={amount} onChangeText={(val) => { setAmount(val); if (errors.amount) setErrors((e) => ({ ...e, amount: undefined })); }} />
-          {errors.amount && (
-            <Text style={[styles.errorText, { color: colors.danger, fontSize: fontSize.sm, marginTop: spacing.xs }]}>{errors.amount}</Text>
-          )}
-        </View>
+        <FadeInView delay={0}>
+          <View style={[styles.amountSection, { marginBottom: spacing.lg }]}>
+            <AmountInput label="Amount" value={amount} onChangeText={(val) => { setAmount(val); if (errors.amount) setErrors((e) => ({ ...e, amount: undefined })); }} />
+            {errors.amount && (
+              <Text style={[styles.errorText, { color: colors.danger, fontSize: fontSize.sm, marginTop: spacing.xs }]}>{errors.amount}</Text>
+            )}
+          </View>
+        </FadeInView>
 
         {/* Category */}
-        <View style={[styles.fieldSection, { marginBottom: spacing.md }]}>
-          <Text style={[styles.fieldLabel, { color: colors.text, fontSize: fontSize.sm, fontWeight: fontWeight.semibold, marginBottom: spacing.sm }]}>Category</Text>
-          <CategoryPicker
-            categories={[...EXPENSE_CATEGORIES]}
-            selected={category}
-            onSelect={(val) => { setCategory(val); if (errors.category) setErrors((e) => ({ ...e, category: undefined })); }}
-          />
-          {errors.category && (
-            <Text style={[styles.errorText, { color: colors.danger, fontSize: fontSize.sm, marginTop: spacing.xs }]}>{errors.category}</Text>
-          )}
-        </View>
+        <FadeInView delay={80}>
+          <View style={[styles.fieldSection, { marginBottom: spacing.md }]}>
+            <Text style={[styles.fieldLabel, { color: colors.text, fontSize: fontSize.sm, fontWeight: fontWeight.semibold, marginBottom: spacing.sm }]}>Category</Text>
+            <CategoryPicker
+              categories={[...EXPENSE_CATEGORIES]}
+              selected={category}
+              onSelect={(val) => { setCategory(val); if (errors.category) setErrors((e) => ({ ...e, category: undefined })); }}
+            />
+            {errors.category && (
+              <Text style={[styles.errorText, { color: colors.danger, fontSize: fontSize.sm, marginTop: spacing.xs }]}>{errors.category}</Text>
+            )}
+          </View>
+        </FadeInView>
 
         {/* Description */}
-        <View style={[styles.fieldSection, { marginBottom: spacing.md }]}>
-          <Input
-            label="Description"
-            placeholder="What was this expense for?"
-            value={description}
-            onChangeText={setDescription}
-          />
-        </View>
+        <FadeInView delay={160}>
+          <View style={[styles.fieldSection, { marginBottom: spacing.md }]}>
+            <Input
+              label="Description"
+              placeholder="What was this expense for?"
+              value={description}
+              onChangeText={setDescription}
+            />
+          </View>
+        </FadeInView>
+
+        {/* Business toggle */}
+        <FadeInView delay={240}>
+          <View style={[styles.switchRow, { backgroundColor: colors.surface, borderRadius: borderRadius.md, borderWidth: 1, borderColor: colors.border, padding: spacing.md, marginBottom: spacing.md }]}>
+            <View style={{ flex: 1, marginRight: 12 }}>
+              <Text style={{ color: colors.text, fontSize: fontSize.md, fontWeight: fontWeight.medium }}>Business Expense</Text>
+              <Text style={{ color: colors.textTertiary, fontSize: fontSize.xs, marginTop: 2 }}>Flag as business-related</Text>
+            </View>
+            <Switch
+              value={isBusiness}
+              onValueChange={setIsBusiness}
+              trackColor={{ false: colors.border, true: colors.primary + '60' }}
+              thumbColor={isBusiness ? colors.primary : '#fff'}
+            />
+          </View>
+        </FadeInView>
 
         {/* Date */}
-        <View style={[styles.fieldSection, { marginBottom: spacing.lg }]}>
-          <Text style={[styles.fieldLabel, { color: colors.text, fontSize: fontSize.sm, fontWeight: fontWeight.semibold, marginBottom: spacing.sm }]}>Date</Text>
-          <View style={[styles.dateDisplay, { backgroundColor: colors.surface, borderRadius: borderRadius.md, borderWidth: 1, borderColor: colors.border, paddingVertical: spacing.md, paddingHorizontal: spacing.md }]}>
-            <Ionicons name="calendar" size={20} color={colors.textSecondary} />
-            <Text style={[styles.dateText, { color: colors.text, fontSize: fontSize.md, fontWeight: fontWeight.medium }]}>{formatDate(date)}</Text>
+        <FadeInView delay={320}>
+          <View style={[styles.fieldSection, { marginBottom: spacing.lg }]}>
+            <Text style={[styles.fieldLabel, { color: colors.text, fontSize: fontSize.sm, fontWeight: fontWeight.semibold, marginBottom: spacing.sm }]}>Date</Text>
+            <View style={[styles.dateDisplay, { backgroundColor: colors.surface, borderRadius: borderRadius.md, borderWidth: 1, borderColor: colors.border, paddingVertical: spacing.md, paddingHorizontal: spacing.md }]}>
+              <Ionicons name="calendar" size={20} color={colors.textSecondary} />
+              <Text style={[styles.dateText, { color: colors.text, fontSize: fontSize.md, fontWeight: fontWeight.medium }]}>{formatDate(date)}</Text>
+            </View>
           </View>
-        </View>
+        </FadeInView>
 
         {/* Actions */}
-        <View style={[styles.actions, { gap: spacing.md }]}>
-          <Button title="Save Changes" onPress={handleSave} loading={saving} disabled={saving} />
-          <Button title="Delete Expense" onPress={handleDelete} variant="danger" />
-          <Pressable
-            onPress={() => router.back()}
-            style={({ pressed }) => [styles.ghostButton, { opacity: pressed ? 0.6 : 1, paddingVertical: spacing.md }]}
-          >
-            <Text style={[styles.ghostButtonText, { color: colors.textSecondary, fontSize: fontSize.md, fontWeight: fontWeight.semibold }]}>Cancel</Text>
-          </Pressable>
-        </View>
+        <FadeInView delay={400}>
+          <View style={[styles.actions, { gap: spacing.md }]}>
+            <Button title="Save Changes" onPress={handleSave} loading={saving} disabled={saving} />
+            <Button title="Delete Expense" onPress={handleDelete} variant="danger" />
+            <Pressable
+              onPress={() => router.back()}
+              style={({ pressed }) => [styles.ghostButton, { opacity: pressed ? 0.6 : 1, paddingVertical: spacing.md }]}
+            >
+              <Text style={[styles.ghostButtonText, { color: colors.textSecondary, fontSize: fontSize.md, fontWeight: fontWeight.semibold }]}>Cancel</Text>
+            </Pressable>
+          </View>
+        </FadeInView>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -200,6 +246,7 @@ const styles = StyleSheet.create({
   dateText: {
     flex: 1,
   },
+  switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   actions: {
     marginTop: 8,
   },

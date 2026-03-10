@@ -49,7 +49,7 @@ function FadeInView({ delay = 0, children, style }: { delay?: number; children: 
 
 const TRANSACTION_TYPE_CONFIG: Record<string, { icon: string; color: string; prefix: string }> = {
   buy: { icon: 'arrow-down-circle', color: '#10B981', prefix: 'Bought' },
-  sell: { icon: 'arrow-up-circle', color: '#EF4444', prefix: 'Sold' },
+  sell: { icon: 'arrow-up-circle', color: '#F43F5E', prefix: 'Sold' },
   dividend: { icon: 'cash', color: '#F59E0B', prefix: 'Dividend' },
 };
 

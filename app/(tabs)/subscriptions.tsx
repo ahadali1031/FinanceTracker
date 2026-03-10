@@ -50,7 +50,7 @@ const CATEGORY_COLORS: Record<string, string> = {
   software: '#3B82F6',
   gaming: '#8B5CF6',
   news: '#F59E0B',
-  fitness: '#EF4444',
+  fitness: '#F43F5E',
   cloud_storage: '#06B6D4',
   other: '#6B7280',
 };

@@ -183,7 +183,7 @@ export default function LoginScreen() {
           },
         ]}
       >
-        <Ionicons name="analytics" size={80} color="#00B67A" />
+        <Ionicons name="analytics" size={80} color="#10B981" />
       </Animated.View>
 
       {/* Title and subtitle */}
