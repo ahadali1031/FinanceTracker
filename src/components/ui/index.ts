@@ -5,3 +5,4 @@ export { AmountInput } from './AmountInput';
 export { CategoryPicker } from './CategoryPicker';
 export { EmptyState } from './EmptyState';
 export { CalendarPicker } from './CalendarPicker';
+export { SuccessToast } from './SuccessToast';

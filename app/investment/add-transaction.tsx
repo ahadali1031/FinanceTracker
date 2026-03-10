@@ -19,11 +19,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/constants/useTheme';
 import { AmountInput, Button, Input, CalendarPicker } from '@/src/components/ui';
 import { useInvestmentStore } from '@/src/stores/investmentStore';
+import { useExpenseStore } from '@/src/stores/expenseStore';
 import { useAuthStore } from '@/src/stores/authStore';
 import { formatDate } from '@/src/utils/date';
 import { searchSymbol } from '@/src/lib/stock-api';
 import type { SymbolSearchResult } from '@/src/lib/stock-api';
 import type { InvestmentTransactionType } from '@/src/types';
+import { useToastStore } from '@/src/stores/toastStore';
 
 function FadeInView({ delay = 0, children, style }: { delay?: number; children: React.ReactNode; style?: any }) {
   const opacity = useRef(new Animated.Value(0)).current;
@@ -66,12 +68,27 @@ export default function AddTransactionScreen() {
   const { accountId: paramAccountId, accountName } = useLocalSearchParams<{ accountId?: string; accountName?: string }>();
 
   const user = useAuthStore((s) => s.user);
-  const { accounts, addTransaction, addHolding, subscribeToAccounts } = useInvestmentStore();
+  const showToast = useToastStore((s) => s.showToast);
+  const { accounts, transactions, addTransaction, addHolding, subscribeToAccounts, subscribeToTransactions } = useInvestmentStore();
+  const { addExpense } = useExpenseStore();
 
   const [selectedAccountId, setSelectedAccountId] = useState(paramAccountId ?? '');
   const accountId = paramAccountId || selectedAccountId;
   const selectedAccount = useMemo(() => accounts.find((a) => a.id === accountId), [accounts, accountId]);
   const is401k = selectedAccount?.accountType === '401k';
+
+  // Compute YTD employer match total to enforce annual cap
+  const ytdMatchTotal = useMemo(() => {
+    const txs = transactions.get(accountId) ?? [];
+    const currentYear = new Date().getFullYear();
+    return txs
+      .filter((t) => t.type === 'employer_match' && t.date.toDate().getFullYear() === currentYear)
+      .reduce((sum, t) => sum + t.totalAmount, 0);
+  }, [transactions, accountId]);
+
+  const remainingCap = selectedAccount?.employerMatchCap
+    ? Math.max(0, selectedAccount.employerMatchCap - ytdMatchTotal)
+    : Infinity;
 
   // Subscribe to accounts if we need to pick one
   useEffect(() => {
@@ -80,6 +97,14 @@ export default function AddTransactionScreen() {
       return unsub;
     }
   }, [user?.uid, paramAccountId]);
+
+  // Subscribe to transactions for the selected account (needed for YTD match calc)
+  useEffect(() => {
+    if (user?.uid && accountId) {
+      const unsub = subscribeToTransactions(user.uid, accountId);
+      return unsub;
+    }
+  }, [user?.uid, accountId]);
 
   const [txType, setTxType] = useState<InvestmentTransactionType>('buy');
   const [ticker, setTicker] = useState('');
@@ -182,7 +207,7 @@ export default function AddTransactionScreen() {
         // Auto-generate employer match for 401k accounts
         if (is401k && selectedAccount?.employerMatch && selectedAccount?.employerMatchCap) {
           const matchRate = selectedAccount.employerMatch / 100;
-          const cappedMatch = Math.min(finalTotal * matchRate, selectedAccount.employerMatchCap);
+          const cappedMatch = Math.min(finalTotal * matchRate, remainingCap);
 
           if (cappedMatch > 0) {
             const matchShares = cappedMatch / parsedPrice;
@@ -215,8 +240,22 @@ export default function AddTransactionScreen() {
         }));
       }
 
+      // Auto-create transfer expense for checking balance
+      if (isTransfer && txType === 'buy') {
+        writes.push(addExpense(user.uid, {
+          amount: finalTotal,
+          category: 'transfer',
+          description: `Transfer to ${selectedAccount?.name ?? 'investment'} — ${tickerUpper}`,
+          date: txDate,
+          isTransfer: true,
+          transferTo: accountId,
+        }));
+      }
+      // For sell with transfer, we'd add income — but sells adding to checking is handled differently
+
       await Promise.all(writes);
 
+      showToast('Transaction saved');
       router.back();
     } catch (error) {
       if (Platform.OS === 'web') {
@@ -526,8 +565,8 @@ export default function AddTransactionScreen() {
               <View style={[styles.matchPreview, { backgroundColor: colors.income + '10', borderRadius: borderRadius.md, borderWidth: 1, borderColor: colors.income + '30', padding: spacing.md, marginBottom: spacing.md }]}>
                 <Ionicons name="gift" size={18} color={colors.income} />
                 <Text style={{ color: colors.income, fontSize: fontSize.sm, marginLeft: spacing.sm, flex: 1 }}>
-                  Employer matches {selectedAccount.employerMatch}%{selectedAccount.employerMatchCap ? ` up to $${selectedAccount.employerMatchCap.toLocaleString()}/yr` : ''}
-                  {computedTotal > 0 && ` — +$${Math.min(computedTotal * (selectedAccount.employerMatch / 100), selectedAccount.employerMatchCap ?? Infinity).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} match`}
+                  Employer matches {selectedAccount.employerMatch}%{selectedAccount.employerMatchCap ? ` — $${remainingCap.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} remaining this year` : ''}
+                  {computedTotal > 0 && ` — +$${Math.min(computedTotal * (selectedAccount.employerMatch / 100), remainingCap).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} match`}
                 </Text>
               </View>
             )}

@@ -13,6 +13,7 @@ export const EXPENSE_CATEGORIES: readonly Category[] = [
   { id: "health", name: "Health", icon: "medical" },
   { id: "education", name: "Education", icon: "school" },
   { id: "travel", name: "Travel", icon: "airplane" },
+  { id: "transfer", name: "Transfer", icon: "swap-horizontal" },
   { id: "other", name: "Other", icon: "ellipsis-horizontal" },
 ] as const;
 

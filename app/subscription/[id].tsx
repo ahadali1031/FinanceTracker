@@ -21,6 +21,7 @@ import { useSubscriptionStore } from '@/src/stores/subscriptionStore';
 import { useAuthStore } from '@/src/stores/authStore';
 import { SUBSCRIPTION_CATEGORIES } from '@/src/utils/categories';
 import { formatDate } from '@/src/utils/date';
+import { useToastStore } from '@/src/stores/toastStore';
 
 function computeNextBillingDate(startDate: Date, frequency: 'monthly' | 'yearly'): Date {
   const now = new Date();
@@ -53,6 +54,7 @@ export default function SubscriptionDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
 
   const user = useAuthStore((s) => s.user);
+  const showToast = useToastStore((s) => s.showToast);
   const { subscriptions, updateSubscription, deleteSubscription } = useSubscriptionStore();
 
   const sub = useMemo(() => subscriptions.find((s) => s.id === id), [subscriptions, id]);
@@ -102,6 +104,7 @@ export default function SubscriptionDetailScreen() {
         nextBillingDate: Timestamp.fromDate(nextBilling),
         isBusiness,
       });
+      showToast('Subscription updated');
       router.back();
     } catch {
       if (Platform.OS === 'web') window.alert('Failed to update.');

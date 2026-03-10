@@ -15,6 +15,7 @@ export interface Expense {
   date: Timestamp;
   createdAt: Timestamp;
   isBusiness?: boolean;
+  isRecurring?: boolean;
   isTransfer?: boolean; // true = transfer to savings/investment, deducts from checking
   transferTo?: string; // account ID this transfer went to
 }

@@ -26,6 +26,11 @@ interface SavingsState {
     accountId: string,
     data: Omit<SavingsSnapshot, "id">
   ) => Promise<void>;
+  deleteSnapshot: (
+    uid: string,
+    accountId: string,
+    snapshotId: string
+  ) => Promise<void>;
   getTotalSavings: () => number;
   getEmergencyFundTotal: () => number;
 }
@@ -110,6 +115,12 @@ export const useSavingsStore = create<SavingsState>((set, get) => ({
         "snapshots"
       ),
       data
+    );
+  },
+
+  deleteSnapshot: async (uid, accountId, snapshotId) => {
+    await deleteDoc(
+      doc(db, "users", uid, "savingsAccounts", accountId, "snapshots", snapshotId)
     );
   },
 

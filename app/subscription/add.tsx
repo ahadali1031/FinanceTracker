@@ -20,6 +20,7 @@ import { useSubscriptionStore } from '@/src/stores/subscriptionStore';
 import { useAuthStore } from '@/src/stores/authStore';
 import { SUBSCRIPTION_CATEGORIES } from '@/src/utils/categories';
 import { formatDate } from '@/src/utils/date';
+import { useToastStore } from '@/src/stores/toastStore';
 
 function computeNextBillingDate(startDate: Date, frequency: 'monthly' | 'yearly'): Date {
   const now = new Date();
@@ -55,6 +56,7 @@ export default function AddSubscriptionScreen() {
   const router = useRouter();
 
   const user = useAuthStore((s) => s.user);
+  const showToast = useToastStore((s) => s.showToast);
   const addSubscription = useSubscriptionStore((s) => s.addSubscription);
 
   const [name, setName] = useState('');
@@ -100,6 +102,7 @@ export default function AddSubscriptionScreen() {
         nextBillingDate: Timestamp.fromDate(nextBilling),
         isBusiness,
       });
+      showToast('Subscription added');
       router.back();
     } catch (error) {
       if (Platform.OS === 'web') {

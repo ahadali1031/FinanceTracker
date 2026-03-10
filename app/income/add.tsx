@@ -19,6 +19,7 @@ import { AmountInput, Button, Input, CalendarPicker } from '@/src/components/ui'
 import { useIncomeStore } from '@/src/stores/incomeStore';
 import { useAuthStore } from '@/src/stores/authStore';
 import { formatDate } from '@/src/utils/date';
+import { useToastStore } from '@/src/stores/toastStore';
 
 function FadeInView({ delay = 0, children, style }: { delay?: number; children: React.ReactNode; style?: any }) {
   const opacity = useRef(new Animated.Value(0)).current;
@@ -40,6 +41,7 @@ export default function AddIncomeScreen() {
   const router = useRouter();
 
   const user = useAuthStore((s) => s.user);
+  const showToast = useToastStore((s) => s.showToast);
   const addIncome = useIncomeStore((s) => s.addIncome);
 
   const [amount, setAmount] = useState('');
@@ -80,6 +82,7 @@ export default function AddIncomeScreen() {
         isRecurring,
         isBusiness,
       });
+      showToast('Income added');
       router.back();
     } catch (error) {
       if (Platform.OS === 'web') {

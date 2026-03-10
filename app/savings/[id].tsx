@@ -16,11 +16,13 @@ import { Timestamp } from 'firebase/firestore';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/constants/useTheme';
 import { useAuthStore } from '@/src/stores/authStore';
+import { useExpenseStore } from '@/src/stores/expenseStore';
 import { useSavingsStore } from '@/src/stores/savingsStore';
 import { formatCurrency } from '@/src/utils/currency';
 import { formatDate } from '@/src/utils/date';
 import { AmountInput, Button, CalendarPicker } from '@/src/components/ui';
 import type { SavingsSnapshot } from '@/src/types';
+import { useToastStore } from '@/src/stores/toastStore';
 
 function FadeInView({ delay = 0, children, style }: { delay?: number; children: React.ReactNode; style?: any }) {
   const opacity = useRef(new Animated.Value(0)).current;
@@ -42,7 +44,9 @@ export default function SavingsAccountDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const user = useAuthStore((s) => s.user);
-  const { accounts, snapshots, addSnapshot, deleteAccount } = useSavingsStore();
+  const showToast = useToastStore((s) => s.showToast);
+  const { accounts, snapshots, addSnapshot, deleteAccount, deleteSnapshot } = useSavingsStore();
+  const { addExpense } = useExpenseStore();
 
   const account = useMemo(() => accounts.find((a) => a.id === id), [accounts, id]);
   const accountSnapshots = useMemo(() => snapshots.get(id ?? '') ?? [], [snapshots, id]);
@@ -71,8 +75,22 @@ export default function SavingsAccountDetailScreen() {
         snapshotDate: Timestamp.fromDate(date),
         ...(isTransfer && { isTransfer: true, transferAmount }),
       } as any);
+
+      // Auto-create transfer expense for checking balance
+      if (isTransfer && transferAmount > 0) {
+        await addExpense(user.uid, {
+          amount: transferAmount,
+          category: 'transfer',
+          description: `Transfer to ${account?.name ?? 'savings'}`,
+          date: Timestamp.fromDate(date),
+          isTransfer: true,
+          transferTo: id,
+        });
+      }
+
       setBalance('');
       setDate(new Date());
+      showToast('Balance updated');
       setShowAddForm(false);
     } catch {
       Alert.alert('Error', 'Failed to add balance update.');
@@ -95,6 +113,25 @@ export default function SavingsAccountDetailScreen() {
       if (window.confirm(`Delete "${account?.name}"? This will remove all balance history.`)) doDelete();
     } else {
       Alert.alert('Delete Account', `Delete "${account?.name}"? This will remove all balance history.`, [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: doDelete },
+      ]);
+    }
+  };
+
+  const handleDeleteSnapshot = (snapshotId: string, snapshotDate: string) => {
+    if (!user?.uid || !id) return;
+    const doDelete = async () => {
+      try {
+        await deleteSnapshot(user.uid, id, snapshotId);
+      } catch {
+        Alert.alert('Error', 'Failed to delete snapshot.');
+      }
+    };
+    if (Platform.OS === 'web') {
+      if (window.confirm(`Delete the balance snapshot from ${snapshotDate}?`)) doDelete();
+    } else {
+      Alert.alert('Delete Snapshot', `Delete the balance snapshot from ${snapshotDate}?`, [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Delete', style: 'destructive', onPress: doDelete },
       ]);
@@ -247,6 +284,13 @@ export default function SavingsAccountDetailScreen() {
                     </Text>
                   </View>
                 )}
+                <Pressable
+                  onPress={() => handleDeleteSnapshot(item.id, formatDate(item.snapshotDate))}
+                  style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1, marginLeft: spacing.sm, padding: spacing.xs })}
+                  hitSlop={8}
+                >
+                  <Ionicons name="trash-outline" size={16} color={colors.danger} />
+                </Pressable>
               </View>
             </FadeInView>
           );

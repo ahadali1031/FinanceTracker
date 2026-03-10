@@ -166,17 +166,27 @@ export const useInvestmentStore = create<InvestmentState>((set, get) => ({
   },
 
   addHolding: async (uid, accountId, data) => {
-    await addDoc(
-      collection(
-        db,
-        "users",
-        uid,
-        "investmentAccounts",
-        accountId,
-        "holdings"
-      ),
-      data
+    const holdingsRef = collection(
+      db,
+      "users",
+      uid,
+      "investmentAccounts",
+      accountId,
+      "holdings"
     );
+    const q = query(holdingsRef, where("ticker", "==", data.ticker));
+    const snap = await getDocs(q);
+
+    if (!snap.empty) {
+      const existingDoc = snap.docs[0];
+      const existing = existingDoc.data() as Omit<Holding, "id">;
+      await updateDoc(existingDoc.ref, {
+        shares: existing.shares + data.shares,
+        costBasis: existing.costBasis + data.costBasis,
+      });
+    } else {
+      await addDoc(holdingsRef, data);
+    }
   },
 
   updateHolding: async (uid, accountId, holdingId, data) => {

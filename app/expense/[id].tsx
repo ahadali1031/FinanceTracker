@@ -21,6 +21,7 @@ import { useExpenseStore } from '@/src/stores/expenseStore';
 import { useAuthStore } from '@/src/stores/authStore';
 import { EXPENSE_CATEGORIES } from '@/src/utils/categories';
 import { formatDate } from '@/src/utils/date';
+import { useToastStore } from '@/src/stores/toastStore';
 
 function FadeInView({ delay = 0, children, style }: { delay?: number; children: React.ReactNode; style?: any }) {
   const opacity = useRef(new Animated.Value(0)).current;
@@ -43,6 +44,7 @@ export default function EditExpenseScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
 
   const user = useAuthStore((s) => s.user);
+  const showToast = useToastStore((s) => s.showToast);
   const { expenses, updateExpense, deleteExpense } = useExpenseStore();
 
   const expense = expenses.find((e) => e.id === id);
@@ -52,6 +54,7 @@ export default function EditExpenseScreen() {
   const [description, setDescription] = useState('');
   const [date, setDate] = useState(new Date());
   const [isBusiness, setIsBusiness] = useState(false);
+  const [isRecurring, setIsRecurring] = useState(false);
   const [saving, setSaving] = useState(false);
   const [initialized, setInitialized] = useState(false);
   const [errors, setErrors] = useState<{ amount?: string; category?: string }>({});
@@ -63,6 +66,7 @@ export default function EditExpenseScreen() {
       setDescription(expense.description);
       setDate(expense.date.toDate());
       setIsBusiness(expense.isBusiness ?? false);
+      setIsRecurring(expense.isRecurring ?? false);
       setInitialized(true);
     }
   }, [expense, initialized]);
@@ -93,7 +97,9 @@ export default function EditExpenseScreen() {
         description: description.trim(),
         date: Timestamp.fromDate(date),
         isBusiness,
+        isRecurring,
       });
+      showToast('Expense updated');
       router.back();
     } catch (error) {
       Alert.alert('Error', 'Failed to update expense. Please try again.');
@@ -191,8 +197,24 @@ export default function EditExpenseScreen() {
           </View>
         </FadeInView>
 
-        {/* Date */}
+        {/* Recurring toggle */}
         <FadeInView delay={320}>
+          <View style={[styles.switchRow, { backgroundColor: colors.surface, borderRadius: borderRadius.md, borderWidth: 1, borderColor: colors.border, padding: spacing.md, marginBottom: spacing.md }]}>
+            <View style={{ flex: 1, marginRight: 12 }}>
+              <Text style={{ color: colors.text, fontSize: fontSize.md, fontWeight: fontWeight.medium }}>Recurring Expense</Text>
+              <Text style={{ color: colors.textTertiary, fontSize: fontSize.xs, marginTop: 2 }}>Repeats monthly</Text>
+            </View>
+            <Switch
+              value={isRecurring}
+              onValueChange={setIsRecurring}
+              trackColor={{ false: colors.border, true: colors.primary + '60' }}
+              thumbColor={isRecurring ? colors.primary : '#fff'}
+            />
+          </View>
+        </FadeInView>
+
+        {/* Date */}
+        <FadeInView delay={400}>
           <View style={[styles.fieldSection, { marginBottom: spacing.lg }]}>
             <Text style={[styles.fieldLabel, { color: colors.text, fontSize: fontSize.sm, fontWeight: fontWeight.semibold, marginBottom: spacing.sm }]}>Date</Text>
             <View style={[styles.dateDisplay, { backgroundColor: colors.surface, borderRadius: borderRadius.md, borderWidth: 1, borderColor: colors.border, paddingVertical: spacing.md, paddingHorizontal: spacing.md }]}>
@@ -203,7 +225,7 @@ export default function EditExpenseScreen() {
         </FadeInView>
 
         {/* Actions */}
-        <FadeInView delay={400}>
+        <FadeInView delay={480}>
           <View style={[styles.actions, { gap: spacing.md }]}>
             <Button title="Save Changes" onPress={handleSave} loading={saving} disabled={saving} />
             <Button title="Delete Expense" onPress={handleDelete} variant="danger" />

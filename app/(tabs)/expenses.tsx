@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Animated,
   Platform,
+  TextInput,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@/constants/useTheme';
@@ -135,6 +136,11 @@ function AnimatedTransactionRow({
                       <Text style={[styles.badgeText, { color: colors.primary, fontSize: fontSize.xs, fontWeight: fontWeight.semibold }]}>Business</Text>
                     </View>
                   )}
+                  {expense.isRecurring && (
+                    <View style={[styles.badge, { backgroundColor: colors.subscription + '18', borderRadius: borderRadius.full, paddingHorizontal: spacing.sm, paddingVertical: 2 }]}>
+                      <Text style={[styles.badgeText, { color: colors.subscription, fontSize: fontSize.xs, fontWeight: fontWeight.semibold }]}>Recurring</Text>
+                    </View>
+                  )}
                 </View>
                 <Text style={[styles.rowSubtitle, { color: colors.textSecondary, fontSize: fontSize.sm }]}>
                   {cat?.name ?? expense.category}
@@ -239,6 +245,7 @@ export default function TransactionsScreen() {
   const [bizFilter, setBizFilter] = useState<BusinessFilter>('all');
   const [showTypeDropdown, setShowTypeDropdown] = useState(false);
   const [showBizDropdown, setShowBizDropdown] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     if (!user?.uid) return;
@@ -279,11 +286,30 @@ export default function TransactionsScreen() {
     }
 
     // Apply filters
+    const trimmedQuery = searchQuery.trim().toLowerCase();
     const transactions = allTransactions.filter((t) => {
       if (typeFilter === 'expenses' && t.type !== 'expense') return false;
       if (typeFilter === 'income' && t.type !== 'income') return false;
       if (bizFilter === 'business' && !t.data.isBusiness) return false;
       if (bizFilter === 'personal' && t.data.isBusiness) return false;
+      if (trimmedQuery) {
+        if (t.type === 'expense') {
+          const expense = t.data as Expense;
+          const catInfo = categoryMap.get(expense.category);
+          const catDisplayName = catInfo?.name ?? '';
+          const match =
+            (expense.description ?? '').toLowerCase().includes(trimmedQuery) ||
+            expense.category.toLowerCase().includes(trimmedQuery) ||
+            catDisplayName.toLowerCase().includes(trimmedQuery);
+          if (!match) return false;
+        } else {
+          const income = t.data as Income;
+          const match =
+            income.source.toLowerCase().includes(trimmedQuery) ||
+            (income.description ?? '').toLowerCase().includes(trimmedQuery);
+          if (!match) return false;
+        }
+      }
       return true;
     });
 
@@ -314,7 +340,7 @@ export default function TransactionsScreen() {
     }
 
     return { monthlyExpenses: expTotal, monthlyIncome: incTotal, businessExpenses: bizExpTotal, businessIncome: bizIncTotal, flatData: items };
-  }, [expenses, incomes, selectedMonth, typeFilter, bizFilter]);
+  }, [expenses, incomes, selectedMonth, typeFilter, bizFilter, searchQuery]);
 
   const handlePrevMonth = useCallback(() => {
     setSelectedMonth((prev) => {
@@ -395,6 +421,7 @@ export default function TransactionsScreen() {
         <AnimatedTransactionRow
           transaction={transaction}
           index={item.index}
+          onPress={() => router.push(`/income/${transaction.data.id}`)}
           onDelete={() => handleDeleteIncome(transaction.data.id)}
           colors={colors}
           spacing={spacing}
@@ -522,6 +549,25 @@ export default function TransactionsScreen() {
         </View>
       </FadeInView>
 
+      {/* Search bar */}
+      <FadeInView delay={225}>
+        <View style={[styles.searchBar, { marginHorizontal: spacing.md, marginTop: spacing.sm, backgroundColor: colors.surface, borderRadius: borderRadius.md, borderWidth: 1, borderColor: colors.border, paddingHorizontal: spacing.md }]}>
+          <Ionicons name="search" size={18} color={colors.textTertiary} style={{ marginRight: spacing.sm }} />
+          <TextInput
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Search transactions..."
+            placeholderTextColor={colors.textTertiary}
+            style={[styles.searchInput, { color: colors.text, fontSize: fontSize.sm, flex: 1, paddingVertical: spacing.sm }]}
+          />
+          {searchQuery.length > 0 && (
+            <Pressable onPress={() => setSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Ionicons name="close-circle" size={18} color={colors.textTertiary} />
+            </Pressable>
+          )}
+        </View>
+      </FadeInView>
+
       {/* Business summary — show when business filter or has business transactions */}
       {(businessExpenses > 0 || businessIncome > 0) && (
         <FadeInView delay={250}>
@@ -642,6 +688,8 @@ const styles = StyleSheet.create({
   },
   netCashLabel: {},
   netCashAmount: {},
+  searchBar: { flexDirection: 'row', alignItems: 'center' },
+  searchInput: { },
   filterRow: { flexDirection: 'row' },
   dropdownButton: { flexDirection: 'row', alignItems: 'center' },
   dropdown: { position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 999, elevation: 5, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 6 },

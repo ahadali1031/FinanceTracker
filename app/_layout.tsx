@@ -8,6 +8,8 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '@/src/lib/firebase';
 import { useAuthStore } from '@/src/stores/authStore';
 import { useColorScheme } from '@/components/useColorScheme';
+import { SuccessToast } from '@/src/components/ui';
+import { useToastStore } from '@/src/stores/toastStore';
 
 export {
   // Catch any errors thrown by the Layout component.
@@ -49,6 +51,7 @@ function RootLayoutNav() {
   const router = useRouter();
   const segments = useSegments();
   const { user, loading, setUser, setLoading } = useAuthStore();
+  const { message: toastMessage, visible: toastVisible, hideToast } = useToastStore();
 
   // Listen for Firebase auth state changes
   useEffect(() => {
@@ -84,6 +87,7 @@ function RootLayoutNav() {
 
   return (
     <ThemeProvider value={DarkTheme}>
+      <SuccessToast message={toastMessage} visible={toastVisible} onHide={hideToast} />
       <Stack screenOptions={{ animation: 'slide_from_right' }}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="login" options={{ headerShown: false, animation: 'fade' }} />
@@ -92,6 +96,7 @@ function RootLayoutNav() {
         <Stack.Screen name="subscription/add" options={{ presentation: 'modal', title: 'Add Subscription', animation: 'slide_from_bottom' }} />
         <Stack.Screen name="subscription/[id]" options={{ title: 'Edit Subscription' }} />
         <Stack.Screen name="income/add" options={{ presentation: 'modal', title: 'Add Income', animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="income/[id]" options={{ title: 'Edit Income' }} />
         <Stack.Screen name="investment/[accountId]" options={{ title: 'Investment Account' }} />
         <Stack.Screen name="investment/add-account" options={{ presentation: 'modal', title: 'Add Account', animation: 'slide_from_bottom' }} />
         <Stack.Screen name="investment/add-transaction" options={{ presentation: 'modal', title: 'Add Transaction', animation: 'slide_from_bottom' }} />
