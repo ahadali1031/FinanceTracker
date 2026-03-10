@@ -1,9 +1,16 @@
-import { getGenerativeModel, getAI } from "@firebase/ai";
+import { getGenerativeModel, getAI, GoogleAIBackend } from "firebase/ai";
 import app from "./firebase";
 import { EXPENSE_CATEGORIES } from "@/src/utils/categories";
 
-const ai = getAI(app);
-const model = getGenerativeModel(ai, { model: "gemini-2.0-flash" });
+let _model: ReturnType<typeof getGenerativeModel> | null = null;
+
+function getModel() {
+  if (!_model) {
+    const ai = getAI(app, { backend: new GoogleAIBackend() });
+    _model = getGenerativeModel(ai, { model: "gemini-2.5-flash" });
+  }
+  return _model;
+}
 
 const CATEGORY_IDS = EXPENSE_CATEGORIES.map((c) => c.id).join(", ");
 
@@ -67,7 +74,7 @@ Respond with ONLY valid JSON, no markdown:
 If the input cannot be parsed as an expense, respond with: null`;
 
   try {
-    const result = await model.generateContent(prompt);
+    const result = await getModel().generateContent(prompt);
     const text = result.response.text().trim();
     const parsed = JSON.parse(text);
     if (!parsed || typeof parsed.amount !== "number" || parsed.amount <= 0) {
@@ -116,7 +123,7 @@ Categories: ${CATEGORY_IDS}
 Respond with ONLY the category ID, nothing else.`;
 
   try {
-    const result = await model.generateContent(prompt);
+    const result = await getModel().generateContent(prompt);
     const text = result.response.text().trim().toLowerCase();
     const validIds = EXPENSE_CATEGORIES.map((c) => c.id);
     if (validIds.includes(text)) {

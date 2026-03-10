@@ -172,7 +172,7 @@ export default function InvestmentAccountScreen() {
                 {editingName ? (
                   <View style={styles.editNameRow}>
                     <TextInput
-                      style={[styles.editNameInput, { color: colors.text, fontSize: fontSize.lg, fontWeight: fontWeight.bold, borderBottomColor: colors.investment, borderBottomWidth: 2, paddingBottom: 2, flex: 1 }]}
+                      style={[styles.editNameInput, { color: colors.text, fontSize: fontSize.lg, fontWeight: fontWeight.bold, borderBottomColor: colors.investment, borderBottomWidth: 2, paddingBottom: 2, flex: 1, outlineStyle: 'none' } as any]}
                       value={editName}
                       onChangeText={setEditName}
                       autoFocus
@@ -478,7 +478,7 @@ function HoldingRow({
                 <View style={{ flex: 1 }}>
                   <Text style={{ color: colors.textSecondary, fontSize: fontSize.xs, marginBottom: 4 }}>Day of month (1-28)</Text>
                   <TextInput
-                    style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: borderRadius.md, padding: spacing.sm, color: colors.text, fontSize: fontSize.md }}
+                    style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: borderRadius.md, padding: spacing.sm, color: colors.text, fontSize: fontSize.md, outlineStyle: 'none' } as any}
                     value={recurringDay}
                     onChangeText={setRecurringDay}
                     keyboardType="number-pad"
@@ -489,7 +489,7 @@ function HoldingRow({
                 <View style={{ flex: 1 }}>
                   <Text style={{ color: colors.textSecondary, fontSize: fontSize.xs, marginBottom: 4 }}>Amount ($)</Text>
                   <TextInput
-                    style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: borderRadius.md, padding: spacing.sm, color: colors.text, fontSize: fontSize.md }}
+                    style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: borderRadius.md, padding: spacing.sm, color: colors.text, fontSize: fontSize.md, outlineStyle: 'none' } as any}
                     value={recurringAmount}
                     onChangeText={setRecurringAmount}
                     keyboardType="decimal-pad"
@@ -650,7 +650,7 @@ function TransactionRow({
               <View>
                 <Text style={{ color: colors.textSecondary, fontSize: fontSize.xs, marginBottom: 4 }}>Dividend Amount ($)</Text>
                 <TextInput
-                  style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: borderRadius.md, padding: spacing.sm, color: colors.text, fontSize: fontSize.md }}
+                  style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: borderRadius.md, padding: spacing.sm, color: colors.text, fontSize: fontSize.md, outlineStyle: 'none' } as any}
                   value={editTotal}
                   onChangeText={setEditTotal}
                   keyboardType="decimal-pad"
@@ -661,7 +661,7 @@ function TransactionRow({
                 <View style={{ flex: 1 }}>
                   <Text style={{ color: colors.textSecondary, fontSize: fontSize.xs, marginBottom: 4 }}>Shares</Text>
                   <TextInput
-                    style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: borderRadius.md, padding: spacing.sm, color: colors.text, fontSize: fontSize.md }}
+                    style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: borderRadius.md, padding: spacing.sm, color: colors.text, fontSize: fontSize.md, outlineStyle: 'none' } as any}
                     value={editShares}
                     onChangeText={setEditShares}
                     keyboardType="decimal-pad"
@@ -670,7 +670,7 @@ function TransactionRow({
                 <View style={{ flex: 1 }}>
                   <Text style={{ color: colors.textSecondary, fontSize: fontSize.xs, marginBottom: 4 }}>Price ($)</Text>
                   <TextInput
-                    style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: borderRadius.md, padding: spacing.sm, color: colors.text, fontSize: fontSize.md }}
+                    style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: borderRadius.md, padding: spacing.sm, color: colors.text, fontSize: fontSize.md, outlineStyle: 'none' } as any}
                     value={editPrice}
                     onChangeText={setEditPrice}
                     keyboardType="decimal-pad"

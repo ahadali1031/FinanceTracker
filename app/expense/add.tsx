@@ -10,6 +10,8 @@ import {
   Platform,
   Switch,
   Animated,
+  TextInput,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Timestamp } from 'firebase/firestore';
@@ -21,7 +23,7 @@ import { useAuthStore } from '@/src/stores/authStore';
 import { EXPENSE_CATEGORIES } from '@/src/utils/categories';
 import { formatDate } from '@/src/utils/date';
 import { useToastStore } from '@/src/stores/toastStore';
-import { suggestCategory } from '@/src/lib/gemini';
+import { suggestCategory, parseExpenseFromText } from '@/src/lib/gemini';
 
 function FadeInView({ delay = 0, children, style }: { delay?: number; children: React.ReactNode; style?: any }) {
   const opacity = useRef(new Animated.Value(0)).current;
@@ -56,6 +58,33 @@ export default function AddExpenseScreen() {
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<{ amount?: string; category?: string }>({});
   const [suggestingCategory, setSuggestingCategory] = useState(false);
+  const [quickAddText, setQuickAddText] = useState('');
+  const [quickAddParsing, setQuickAddParsing] = useState(false);
+
+  const handleQuickAdd = async () => {
+    if (!quickAddText.trim() || quickAddParsing) return;
+    setQuickAddParsing(true);
+    try {
+      const parsed = await parseExpenseFromText(quickAddText.trim());
+      if (!parsed) {
+        if (Platform.OS === 'web') window.alert('Could not parse. Try something like "$14.50 chipotle lunch".');
+        else Alert.alert('Parse Error', 'Could not parse. Try something like "$14.50 chipotle lunch".');
+        return;
+      }
+      setAmount(String(parsed.amount));
+      setCategory(parsed.category);
+      setDescription(parsed.description);
+      setIsBusiness(parsed.isBusiness);
+      if (parsed.date) setDate(new Date(parsed.date));
+      setErrors({});
+      setQuickAddText('');
+    } catch {
+      if (Platform.OS === 'web') window.alert('AI parsing failed. Fill in the form manually.');
+      else Alert.alert('Error', 'AI parsing failed. Fill in the form manually.');
+    } finally {
+      setQuickAddParsing(false);
+    }
+  };
 
   const handleDescriptionBlur = async () => {
     if (category || !description.trim() || suggestingCategory) return;
@@ -120,6 +149,30 @@ export default function AddExpenseScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView contentContainerStyle={[styles.content, { padding: spacing.md, paddingBottom: 40 }]} keyboardShouldPersistTaps="handled">
+        {/* AI Quick Add */}
+        <FadeInView delay={0}>
+          <View style={[styles.quickAddBar, { backgroundColor: colors.surface, borderRadius: borderRadius.md, borderWidth: 1, borderColor: quickAddText.trim() ? colors.primary : colors.border, paddingHorizontal: spacing.md, marginBottom: spacing.lg }]}>
+            <Ionicons name="flash" size={18} color={colors.primary} style={{ marginRight: spacing.sm }} />
+            <TextInput
+              value={quickAddText}
+              onChangeText={setQuickAddText}
+              placeholder='"$14 chipotle lunch"'
+              placeholderTextColor={colors.textTertiary}
+              style={{ color: colors.text, fontSize: fontSize.sm, flex: 1, paddingVertical: spacing.sm, outlineStyle: 'none' } as any}
+              onSubmitEditing={handleQuickAdd}
+              returnKeyType="go"
+              editable={!quickAddParsing}
+            />
+            {quickAddParsing ? (
+              <ActivityIndicator size="small" color={colors.primary} />
+            ) : quickAddText.trim().length > 0 ? (
+              <Pressable onPress={handleQuickAdd} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Ionicons name="arrow-up-circle" size={24} color={colors.primary} />
+              </Pressable>
+            ) : null}
+          </View>
+        </FadeInView>
+
         {/* Hero amount */}
         <FadeInView delay={0}>
           <View style={[styles.amountSection, { marginBottom: spacing.lg }]}>
@@ -246,6 +299,7 @@ export default function AddExpenseScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: {},
+  quickAddBar: { flexDirection: 'row', alignItems: 'center' },
   amountSection: { alignItems: 'center' },
   fieldSection: {},
   fieldLabel: {},

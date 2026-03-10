@@ -89,7 +89,8 @@ export function Input({
               color: colors.text,
               fontSize: fontSize.md,
               padding: spacing.md,
-            },
+              outlineStyle: 'none',
+            } as any,
             multiline && styles.multiline,
           ]}
           placeholder={placeholder}

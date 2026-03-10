@@ -97,7 +97,8 @@ export function AmountInput({ value, onChangeText, label }: AmountInputProps) {
               color: colors.text,
               fontSize: fontSize.hero,
               fontWeight: fontWeight.bold,
-            },
+              outlineStyle: 'none',
+            } as any,
           ]}
           value={displayValue}
           onChangeText={handleChangeText}
