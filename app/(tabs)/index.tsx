@@ -15,6 +15,7 @@ import { useExpenseStore } from '@/src/stores/expenseStore';
 import { useIncomeStore } from '@/src/stores/incomeStore';
 import { useSubscriptionStore } from '@/src/stores/subscriptionStore';
 import { useSavingsStore } from '@/src/stores/savingsStore';
+import { useInvestmentStore } from '@/src/stores/investmentStore';
 import { formatCurrency } from '@/src/utils/currency';
 
 function FadeInView({
@@ -138,6 +139,7 @@ export default function DashboardScreen() {
   const { incomes, subscribeToIncome } = useIncomeStore();
   const { subscriptions, subscribeToSubscriptions, getMonthlyTotal } = useSubscriptionStore();
   const { subscribeToAccounts: subscribeToSavings, getTotalSavings } = useSavingsStore();
+  const { accounts: investmentAccounts, holdings: investmentHoldings, subscribeToAccounts: subscribeToInvestments } = useInvestmentStore();
 
   // Subscribe to all data
   useEffect(() => {
@@ -147,12 +149,13 @@ export default function DashboardScreen() {
       subscribeToIncome(user.uid),
       subscribeToSubscriptions(user.uid),
       subscribeToSavings(user.uid),
+      subscribeToInvestments(user.uid),
     ];
     return () => unsubs.forEach((u) => u());
   }, [user?.uid]);
 
   // Compute current month totals and net worth
-  const { monthlyExpenses, monthlyIncome, netWorth } = useMemo(() => {
+  const { monthlyExpenses, monthlyIncome, netWorth, investmentTotal } = useMemo(() => {
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
     const year = now.getFullYear();
@@ -183,10 +186,19 @@ export default function DashboardScreen() {
     }
 
     const savings = getTotalSavings();
-    const nw = savings + incTotal - expTotal;
 
-    return { monthlyExpenses: expMonthly, monthlyIncome: incMonthly, netWorth: nw };
-  }, [expenses, incomes, getTotalSavings]);
+    let investTotal = 0;
+    for (const acct of investmentAccounts) {
+      const h = investmentHoldings.get(acct.id) ?? [];
+      for (const holding of h) {
+        investTotal += holding.costBasis;
+      }
+    }
+
+    const nw = savings + investTotal + incTotal - expTotal;
+
+    return { monthlyExpenses: expMonthly, monthlyIncome: incMonthly, netWorth: nw, investmentTotal: investTotal };
+  }, [expenses, incomes, getTotalSavings, investmentAccounts, investmentHoldings]);
 
   const monthlySubscriptions = useMemo(() => getMonthlyTotal(), [subscriptions]);
 
@@ -258,13 +270,14 @@ export default function DashboardScreen() {
       <View style={[styles.gridRow, { gap: spacing.sm }]}>
         <SummaryCard
           label="Investments"
-          amount={0}
+          amount={investmentTotal}
           accentColor={colors.investment}
           delay={300}
           colors={colors}
           fontSize={fontSize}
           fontWeight={fontWeight}
           borderRadius={borderRadius}
+          onPress={() => router.push('/(tabs)/investments' as any)}
         />
         <SummaryCard
           label="Savings"

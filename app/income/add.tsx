@@ -14,7 +14,7 @@ import { useRouter } from 'expo-router';
 import { Timestamp } from 'firebase/firestore';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/constants/useTheme';
-import { AmountInput, Button, Input } from '@/src/components/ui';
+import { AmountInput, Button, Input, CalendarPicker } from '@/src/components/ui';
 import { useIncomeStore } from '@/src/stores/incomeStore';
 import { useAuthStore } from '@/src/stores/authStore';
 import { formatDate } from '@/src/utils/date';
@@ -30,7 +30,7 @@ export default function AddIncomeScreen() {
   const [source, setSource] = useState('');
   const [description, setDescription] = useState('');
   const [date, setDate] = useState(new Date());
-  const [showDateInput, setShowDateInput] = useState(false);
+  const [showCalendar, setShowCalendar] = useState(false);
   const [isRecurring, setIsRecurring] = useState(false);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<{ amount?: string; source?: string }>({});
@@ -64,7 +64,11 @@ export default function AddIncomeScreen() {
       });
       router.back();
     } catch (error) {
-      Alert.alert('Error', 'Failed to save income. Please try again.');
+      if (Platform.OS === 'web') {
+        window.alert('Failed to save income.');
+      } else {
+        Alert.alert('Error', 'Failed to save income. Please try again.');
+      }
     } finally {
       setSaving(false);
     }
@@ -110,36 +114,34 @@ export default function AddIncomeScreen() {
         {/* Date */}
         <View style={[styles.fieldSection, { marginBottom: spacing.md }]}>
           <Text style={[styles.fieldLabel, { color: colors.text, fontSize: fontSize.sm, fontWeight: fontWeight.semibold, marginBottom: spacing.sm }]}>Date</Text>
-          {showDateInput ? (
-            <View style={[styles.dateInputRow, { backgroundColor: colors.surface, borderRadius: borderRadius.md, borderWidth: 1, borderColor: colors.primary, paddingVertical: spacing.sm, paddingHorizontal: spacing.md }]}>
-              <Ionicons name="calendar" size={20} color={colors.primary} />
-              <Input
-                value={`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`}
-                onChangeText={(val) => {
-                  const parsed = new Date(val + 'T12:00:00');
-                  if (!isNaN(parsed.getTime())) setDate(parsed);
+          <Pressable
+            onPress={() => setShowCalendar(!showCalendar)}
+            style={[styles.dateDisplay, { backgroundColor: colors.surface, borderRadius: borderRadius.md, borderWidth: 1, borderColor: showCalendar ? colors.primary : colors.border, paddingVertical: spacing.md, paddingHorizontal: spacing.md }]}
+          >
+            <Ionicons name="calendar" size={20} color={showCalendar ? colors.primary : colors.textSecondary} />
+            <Text style={[styles.dateText, { color: colors.text, fontSize: fontSize.md, fontWeight: fontWeight.medium }]}>{formatDate(date)}</Text>
+            {date.toDateString() === new Date().toDateString() && (
+              <View style={[styles.dateBadge, { backgroundColor: colors.primary + '15', borderRadius: borderRadius.full, paddingHorizontal: spacing.sm, paddingVertical: 2 }]}>
+                <Text style={[{ color: colors.primary, fontSize: fontSize.xs, fontWeight: fontWeight.semibold }]}>Today</Text>
+              </View>
+            )}
+            {date > new Date(new Date().setHours(23, 59, 59)) && (
+              <View style={[styles.dateBadge, { backgroundColor: colors.subscription + '15', borderRadius: borderRadius.full, paddingHorizontal: spacing.sm, paddingVertical: 2 }]}>
+                <Text style={[{ color: colors.subscription, fontSize: fontSize.xs, fontWeight: fontWeight.semibold }]}>Scheduled</Text>
+              </View>
+            )}
+            <Ionicons name={showCalendar ? 'chevron-up' : 'chevron-down'} size={18} color={colors.textTertiary} />
+          </Pressable>
+          {showCalendar && (
+            <View style={{ marginTop: spacing.sm }}>
+              <CalendarPicker
+                value={date}
+                onChange={(d) => {
+                  setDate(d);
+                  setShowCalendar(false);
                 }}
-                placeholder="YYYY-MM-DD"
-                style={{ flex: 1, borderWidth: 0, backgroundColor: 'transparent' }}
               />
-              <Pressable onPress={() => setShowDateInput(false)}>
-                <Ionicons name="checkmark-circle" size={24} color={colors.primary} />
-              </Pressable>
             </View>
-          ) : (
-            <Pressable
-              onPress={() => setShowDateInput(true)}
-              style={[styles.dateDisplay, { backgroundColor: colors.surface, borderRadius: borderRadius.md, borderWidth: 1, borderColor: colors.border, paddingVertical: spacing.md, paddingHorizontal: spacing.md }]}
-            >
-              <Ionicons name="calendar" size={20} color={colors.textSecondary} />
-              <Text style={[styles.dateText, { color: colors.text, fontSize: fontSize.md, fontWeight: fontWeight.medium }]}>{formatDate(date)}</Text>
-              {date.toDateString() === new Date().toDateString() && (
-                <Text style={[styles.todayBadge, { color: colors.primary, fontSize: fontSize.xs, fontWeight: fontWeight.semibold }]}>Today</Text>
-              )}
-              {date > new Date() && (
-                <Text style={[styles.todayBadge, { color: colors.subscription, fontSize: fontSize.xs, fontWeight: fontWeight.semibold }]}>Scheduled</Text>
-              )}
-            </Pressable>
           )}
         </View>
 
@@ -173,13 +175,9 @@ export default function AddIncomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
+  container: { flex: 1 },
   content: {},
-  amountSection: {
-    alignItems: 'center',
-  },
+  amountSection: { alignItems: 'center' },
   fieldSection: {},
   fieldLabel: {},
   errorText: {},
@@ -188,34 +186,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
   },
-  dateInputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  dateText: {
-    flex: 1,
-  },
-  todayBadge: {},
+  dateText: { flex: 1 },
+  dateBadge: {},
   switchRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  switchLabelWrap: {
-    flex: 1,
-    marginRight: 12,
-  },
+  switchLabelWrap: { flex: 1, marginRight: 12 },
   switchLabel: {},
-  switchHint: {
-    marginTop: 2,
-  },
-  actions: {
-    marginTop: 8,
-  },
-  ghostButton: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  switchHint: { marginTop: 2 },
+  actions: { marginTop: 8 },
+  ghostButton: { alignItems: 'center', justifyContent: 'center' },
   ghostButtonText: {},
 });

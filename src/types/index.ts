@@ -53,6 +53,8 @@ export interface InvestmentAccount {
   name: string;
   accountType: InvestmentAccountType;
   institution: string;
+  employerMatch?: number; // percentage (e.g. 50 = 50% match), only for 401k
+  employerMatchLimit?: number; // max % of salary matched (e.g. 6 = up to 6% of salary)
 }
 
 export interface Holding {
@@ -60,6 +62,9 @@ export interface Holding {
   ticker: string;
   shares: number;
   costBasis: number;
+  isRecurring?: boolean; // auto-invest on a schedule
+  recurringDay?: number; // day of month (1-28)
+  recurringAmount?: number; // $ amount per occurrence
 }
 
 export type InvestmentTransactionType = "buy" | "sell" | "dividend";
@@ -72,6 +77,7 @@ export interface InvestmentTransaction {
   pricePerShare: number;
   totalAmount: number;
   date: Timestamp;
+  isReinvested?: boolean; // DRIP — dividend was reinvested into more shares
 }
 
 export interface InvestmentSnapshot {

@@ -152,7 +152,7 @@ export default function SubscriptionDetailScreen() {
                   },
                 ]}
               >
-                <Text style={{ color: frequency === f ? '#fff' : colors.text, fontSize: fontSize.md, fontWeight: frequency === f ? fontWeight.semibold : fontWeight.regular }}>
+                <Text style={{ color: frequency === f ? '#fff' : colors.text, fontSize: fontSize.md, fontWeight: frequency === f ? fontWeight.semibold : fontWeight.normal }}>
                   {f === 'monthly' ? 'Monthly' : 'Yearly'}
                 </Text>
               </Pressable>

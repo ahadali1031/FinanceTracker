@@ -2,17 +2,14 @@ import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
-// TODO: Replace with your Firebase project configuration.
-// You can find this in the Firebase Console under Project Settings > General > Your Apps.
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: "AIzaSyCemOKz1cGVV742nFOARkliFjfYduyXWek",
-  authDomain: "financetracker-f76f2.firebaseapp.com",
-  projectId: "financetracker-f76f2",
-  storageBucket: "financetracker-f76f2.firebasestorage.app",
-  messagingSenderId: "253034802487",
-  appId: "1:253034802487:web:382013169b46d7d3bc7eb2",
-  measurementId: "G-5H4HY90XKR",
+  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
+  measurementId: process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
 const app = initializeApp(firebaseConfig);

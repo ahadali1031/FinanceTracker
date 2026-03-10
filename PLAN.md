@@ -47,19 +47,40 @@
 - [x] Auto-calculate nextBillingDate from startDate + frequency
 - [x] Category-colored accent bars + icons
 
-## Phase 4: Investments 🔲
-- [ ] Investment accounts list — name, type badge, institution, total value
-- [ ] Add investment account (name, type, institution)
-- [ ] Account detail — holdings list, transactions list
-- [ ] Add holding (ticker, shares, cost basis)
-- [ ] Buy/sell transaction form — ticker, type, shares, price, date
-- [ ] Alpha Vantage integration — live stock quotes for holdings
-- [ ] CoinGecko integration — live crypto prices
-- [ ] Holdings view with current prices, gain/loss ($, %)
-- [ ] Recurring investments (auto-add on set day with live prices)
-- [ ] Employer match option for 401k contributions
-- [ ] DRIP handling via "Reinvested" toggle on dividend transactions
-- [ ] Portfolio allocation donut chart
+## Phase 4: Investments ✅
+- [x] Investment accounts list — name, type badge, institution, total value
+- [x] Add investment account (name, type picker, institution)
+- [x] Account detail — holdings list, transactions list with tab switcher
+- [x] Buy/sell/dividend transaction form — ticker, type, shares, price, date
+- [x] Holdings view with ticker badges, cost basis, avg price per share
+- [x] Dashboard wired to live investment totals, tappable card
+- [x] Calendar picker (react-native-calendars) on all date fields
+- [x] Alpha Vantage integration — live stock quotes for holdings
+- [x] CoinGecko integration — live crypto prices
+- [x] Holdings with current market prices, gain/loss ($, %)
+- [x] Ticker search via Alpha Vantage SYMBOL_SEARCH endpoint
+- [x] Recurring investments — auto-invest toggle per holding (day of month + amount)
+- [x] Employer match option for 401k contributions (match % + salary % limit)
+- [x] DRIP handling via "Reinvested" toggle on dividend transactions
+- [x] Delete transaction adjusts holdings (removes shares/cost basis)
+- [ ] Portfolio allocation donut chart (moved to Phase 5)
+
+## Phase 4.5: Business vs Personal Tagging 🔲
+- [ ] **Data model**: Add `isBusiness: boolean` to Expense and Income types (default `false`)
+- [ ] **Add Expense form**: Business toggle (Switch row)
+- [ ] **Add Income form**: Business toggle (Switch row)
+- [ ] **Edit Expense form**: Business toggle (retroactive flagging)
+- [ ] **Transactions filter bar**: Pill buttons — All | Expenses | Income | Business | Personal
+- [ ] **Business badge**: Show "Business" pill on flagged transaction rows
+- [ ] **Dashboard business summary card**: Business Income, Business Expenses, Net Business Gain for current month
+- [ ] **Dashboard chart**: Business net gains bar/line chart (monthly trend)
+- [ ] **Sort/filter by category**: Category filter dropdown on transactions tab
+
+### Implementation details:
+- Existing Firestore docs without `isBusiness` treated as `false` (no migration needed)
+- Filter bar is a horizontal scroll of pill buttons, applied in the `useMemo` that builds transaction list
+- Business summary on dashboard computed from filtered expenses/incomes in current month
+- Chart uses same data, grouped by month for last 6 months
 
 ## Phase 5: Savings, Dashboard Charts & Budget 🔲
 - [ ] Savings accounts list — name, institution, latest balance, emergency fund badge
@@ -120,3 +141,5 @@
 - Path alias: `@/*` maps to project root
 - Amount inputs show comma formatting (e.g. 5,000.00)
 - Web uses window.confirm for delete, native uses Alert.alert
+- Business/personal flag on expenses & income — filter and chart on dashboard
+- react-native-calendars for date selection across all forms

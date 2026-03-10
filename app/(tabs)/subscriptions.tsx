@@ -146,7 +146,7 @@ function AnimatedSubscriptionRow({
               ]}
             >
               {formatCurrency(item.amount)}
-              <Text style={{ fontSize: fontSize.xs, fontWeight: fontWeight.regular }}>
+              <Text style={{ fontSize: fontSize.xs, fontWeight: fontWeight.normal }}>
                 /{item.frequency === 'monthly' ? 'mo' : 'yr'}
               </Text>
             </Text>

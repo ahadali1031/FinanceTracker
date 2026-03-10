@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -7,10 +7,18 @@ import {
   Alert,
   Animated,
   Dimensions,
+  ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { signInAnonymously } from 'firebase/auth';
+import { signInAnonymously, GoogleAuthProvider, signInWithCredential, signInWithPopup } from 'firebase/auth';
 import { auth } from '@/src/lib/firebase';
+import * as Google from 'expo-auth-session/providers/google';
+import * as WebBrowser from 'expo-web-browser';
+
+WebBrowser.maybeCompleteAuthSession();
+
+const GOOGLE_WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID!;
 
 const { width } = Dimensions.get('window');
 
@@ -18,10 +26,12 @@ function AnimatedPressable({
   onPress,
   style,
   children,
+  disabled,
 }: {
   onPress: () => void;
   style: any;
   children: React.ReactNode;
+  disabled?: boolean;
 }) {
   const scale = useRef(new Animated.Value(1)).current;
 
@@ -47,8 +57,9 @@ function AnimatedPressable({
       onPress={onPress}
       onPressIn={onPressIn}
       onPressOut={onPressOut}
+      disabled={disabled}
     >
-      <Animated.View style={[style, { transform: [{ scale }] }]}>
+      <Animated.View style={[style, { transform: [{ scale }] }, disabled && { opacity: 0.6 }]}>
         {children}
       </Animated.View>
     </TouchableOpacity>
@@ -61,6 +72,12 @@ export default function LoginScreen() {
   const iconScale = useRef(new Animated.Value(0.5)).current;
   const buttonFade = useRef(new Animated.Value(0)).current;
   const buttonSlide = useRef(new Animated.Value(40)).current;
+  const [signingIn, setSigningIn] = useState(false);
+
+  const [request, response, promptAsync] = Google.useAuthRequest({
+    webClientId: GOOGLE_WEB_CLIENT_ID,
+    scopes: ['profile', 'email'],
+  });
 
   useEffect(() => {
     Animated.sequence([
@@ -98,18 +115,57 @@ export default function LoginScreen() {
     ]).start();
   }, []);
 
-  const handleGoogleSignIn = () => {
-    Alert.alert(
-      'Google Sign-In',
-      'Configure Google OAuth in Firebase Console'
-    );
+  // Handle Google auth response
+  useEffect(() => {
+    if (response?.type === 'success') {
+      const { id_token } = response.params;
+      const credential = GoogleAuthProvider.credential(id_token);
+      setSigningIn(true);
+      signInWithCredential(auth, credential)
+        .catch((error) => {
+          const msg = error?.message ?? 'Google sign-in failed.';
+          if (Platform.OS === 'web') {
+            window.alert(msg);
+          } else {
+            Alert.alert('Sign-In Error', msg);
+          }
+        })
+        .finally(() => setSigningIn(false));
+    }
+  }, [response]);
+
+  const handleGoogleSignIn = async () => {
+    if (Platform.OS === 'web') {
+      // Use Firebase popup sign-in directly on web
+      setSigningIn(true);
+      try {
+        const provider = new GoogleAuthProvider();
+        await signInWithPopup(auth, provider);
+      } catch (error: any) {
+        if (error?.code !== 'auth/popup-closed-by-user') {
+          window.alert(error?.message ?? 'Google sign-in failed.');
+        }
+      } finally {
+        setSigningIn(false);
+      }
+    } else {
+      // Use expo-auth-session on native
+      promptAsync();
+    }
   };
 
   const handleAnonymousSignIn = async () => {
+    setSigningIn(true);
     try {
       await signInAnonymously(auth);
     } catch (error: any) {
-      Alert.alert('Sign-In Error', error.message);
+      if (Platform.OS === 'web') {
+        window.alert(error.message);
+      } else {
+        Alert.alert('Sign-In Error', error.message);
+      }
+    } finally {
+      setSigningIn(false);
     }
   };
 
@@ -156,11 +212,18 @@ export default function LoginScreen() {
           },
         ]}
       >
-        <AnimatedPressable onPress={handleGoogleSignIn} style={styles.googleButton}>
-          <Text style={styles.googleButtonText}>Sign in with Google</Text>
+        <AnimatedPressable onPress={handleGoogleSignIn} style={styles.googleButton} disabled={signingIn}>
+          {signingIn ? (
+            <ActivityIndicator color="#0A1F15" />
+          ) : (
+            <View style={styles.googleButtonContent}>
+              <Ionicons name="logo-google" size={20} color="#0A1F15" style={{ marginRight: 10 }} />
+              <Text style={styles.googleButtonText}>Sign in with Google</Text>
+            </View>
+          )}
         </AnimatedPressable>
 
-        <AnimatedPressable onPress={handleAnonymousSignIn} style={styles.guestButton}>
+        <AnimatedPressable onPress={handleAnonymousSignIn} style={styles.guestButton} disabled={signingIn}>
           <Text style={styles.guestButtonText}>Continue as Guest</Text>
         </AnimatedPressable>
       </Animated.View>
@@ -183,7 +246,6 @@ const styles = StyleSheet.create({
   iconContainer: {
     marginBottom: 24,
   },
-  icon: {},
   header: {
     alignItems: 'center',
   },
@@ -212,11 +274,17 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderRadius: 14,
     alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 54,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 12,
     elevation: 6,
+  },
+  googleButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   googleButtonText: {
     color: '#0A1F15',
