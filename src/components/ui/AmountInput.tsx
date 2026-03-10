@@ -1,12 +1,11 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   StyleSheet,
   View,
   Text,
   TextInput,
 } from 'react-native';
-import { useColorScheme } from '@/components/useColorScheme';
-import Colors from '@/constants/Colors';
+import { useTheme } from '@/constants/useTheme';
 
 interface AmountInputProps {
   value: string;
@@ -15,17 +14,14 @@ interface AmountInputProps {
 }
 
 export function AmountInput({ value, onChangeText, label }: AmountInputProps) {
-  const colorScheme = useColorScheme() ?? 'light';
-  const isDark = colorScheme === 'dark';
-  const colors = Colors[colorScheme];
+  const { isDark, colors, fontSize, fontWeight, spacing, borderRadius } = useTheme();
+  const [isFocused, setIsFocused] = useState(false);
 
   const handleChangeText = useCallback(
     (text: string) => {
-      // Allow only digits and a single decimal point
       const cleaned = text.replace(/[^0-9.]/g, '');
       const parts = cleaned.split('.');
       if (parts.length > 2) return;
-      // Limit to 2 decimal places while typing
       if (parts[1] && parts[1].length > 2) return;
       onChangeText(cleaned);
     },
@@ -33,6 +29,7 @@ export function AmountInput({ value, onChangeText, label }: AmountInputProps) {
   );
 
   const handleBlur = useCallback(() => {
+    setIsFocused(false);
     if (!value) return;
     const num = parseFloat(value);
     if (isNaN(num)) {
@@ -45,26 +42,57 @@ export function AmountInput({ value, onChangeText, label }: AmountInputProps) {
   return (
     <View style={styles.container}>
       {label && (
-        <Text style={[styles.label, { color: colors.text }]}>{label}</Text>
+        <Text
+          style={[
+            styles.label,
+            {
+              color: colors.textSecondary,
+              fontSize: fontSize.sm,
+              fontWeight: fontWeight.semibold,
+            },
+          ]}
+        >
+          {label}
+        </Text>
       )}
       <View
         style={[
           styles.inputRow,
           {
-            backgroundColor: isDark ? '#1c1c1e' : '#fff',
-            borderColor: isDark ? '#38383a' : '#d1d1d6',
+            borderBottomWidth: isFocused ? 2 : 1.5,
+            borderBottomColor: isFocused ? colors.primary : colors.border,
+            paddingBottom: spacing.sm,
           },
         ]}
       >
-        <Text style={[styles.prefix, { color: colors.text }]}>$</Text>
+        <Text
+          style={[
+            styles.prefix,
+            {
+              color: colors.primary,
+              fontSize: fontSize.hero,
+              fontWeight: fontWeight.bold,
+            },
+          ]}
+        >
+          $
+        </Text>
         <TextInput
-          style={[styles.input, { color: colors.text }]}
+          style={[
+            styles.input,
+            {
+              color: colors.text,
+              fontSize: fontSize.hero,
+              fontWeight: fontWeight.bold,
+            },
+          ]}
           value={value}
           onChangeText={handleChangeText}
+          onFocus={() => setIsFocused(true)}
           onBlur={handleBlur}
           keyboardType="decimal-pad"
           placeholder="0.00"
-          placeholderTextColor={isDark ? '#636366' : '#a0a0a0'}
+          placeholderTextColor={colors.textTertiary}
         />
       </View>
     </View>
@@ -73,29 +101,23 @@ export function AmountInput({ value, onChangeText, label }: AmountInputProps) {
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 16,
+    marginBottom: 24,
+    alignItems: 'center',
   },
   label: {
-    fontSize: 14,
-    fontWeight: '500',
-    marginBottom: 6,
+    marginBottom: 12,
+    letterSpacing: 0.2,
   },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 14,
+    justifyContent: 'center',
   },
   prefix: {
-    fontSize: 20,
-    fontWeight: '600',
     marginRight: 4,
   },
   input: {
-    flex: 1,
-    fontSize: 20,
-    fontWeight: '600',
-    paddingVertical: 12,
+    minWidth: 120,
+    textAlign: 'center',
   },
 });

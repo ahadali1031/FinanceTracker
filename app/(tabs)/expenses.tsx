@@ -1,16 +1,16 @@
-import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import {
   StyleSheet,
   View,
   Text,
   FlatList,
-  TouchableOpacity,
+  Pressable,
   Alert,
   ActivityIndicator,
+  Animated,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useColorScheme } from '@/components/useColorScheme';
-import Colors from '@/constants/Colors';
+import { useTheme } from '@/constants/useTheme';
 import { Card, EmptyState } from '@/src/components/ui';
 import { useExpenseStore } from '@/src/stores/expenseStore';
 import { useAuthStore } from '@/src/stores/authStore';
@@ -21,16 +21,101 @@ import type { Expense } from '@/src/types';
 
 const categoryMap = new Map(EXPENSE_CATEGORIES.map((c) => [c.id, c]));
 
+const CATEGORY_ACCENT_COLORS: Record<string, string> = {
+  food: '#FF6B6B',
+  transport: '#4ECDC4',
+  entertainment: '#45B7D1',
+  shopping: '#96CEB4',
+  bills: '#FFEAA7',
+  health: '#DDA0DD',
+  education: '#98D8C8',
+  travel: '#F7DC6F',
+  other: '#BB8FCE',
+};
+
 interface DateGroup {
   dateKey: string;
   dateLabel: string;
   data: Expense[];
 }
 
+function AnimatedExpenseRow({
+  expense,
+  index,
+  onPress,
+  onDelete,
+  colors,
+  spacing,
+  borderRadius,
+  fontSize,
+  fontWeight,
+}: {
+  expense: Expense;
+  index: number;
+  onPress: () => void;
+  onDelete: () => void;
+  colors: ReturnType<typeof useTheme>['colors'];
+  spacing: ReturnType<typeof useTheme>['spacing'];
+  borderRadius: ReturnType<typeof useTheme>['borderRadius'];
+  fontSize: ReturnType<typeof useTheme>['fontSize'];
+  fontWeight: ReturnType<typeof useTheme>['fontWeight'];
+}) {
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 300,
+      delay: index * 60,
+      useNativeDriver: true,
+    }).start();
+  }, []);
+
+  const cat = categoryMap.get(expense.category);
+  const accentColor = CATEGORY_ACCENT_COLORS[expense.category] ?? colors.primary;
+
+  return (
+    <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: fadeAnim.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }] }}>
+      <Card
+        style={[styles.expenseRow, { marginHorizontal: spacing.md, marginBottom: spacing.sm }]}
+        onPress={onPress}
+      >
+        <View style={[styles.accentBar, { backgroundColor: accentColor, borderTopLeftRadius: borderRadius.md, borderBottomLeftRadius: borderRadius.md }]} />
+        <View style={[styles.rowContent, { paddingVertical: spacing.md, paddingRight: spacing.md, paddingLeft: spacing.md }]}>
+          <View style={styles.rowLeft}>
+            <Text style={[styles.categoryIcon, { fontSize: fontSize.xxl }]}>{cat?.icon ?? '\uD83D\uDCE6'}</Text>
+            <View style={styles.rowText}>
+              <Text style={[styles.description, { color: colors.text, fontSize: fontSize.md, fontWeight: fontWeight.bold }]} numberOfLines={1}>
+                {expense.description || cat?.name || 'Expense'}
+              </Text>
+              <Text style={[styles.categoryName, { color: colors.textSecondary, fontSize: fontSize.sm }]}>
+                {cat?.name ?? expense.category}
+              </Text>
+            </View>
+          </View>
+          <View style={styles.rowRight}>
+            <Text style={[styles.amount, { color: colors.expense, fontSize: fontSize.md, fontWeight: fontWeight.semibold }]}>
+              -{formatCurrency(expense.amount)}
+            </Text>
+            <Pressable
+              onPress={(e) => {
+                e.stopPropagation();
+                onDelete();
+              }}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              style={({ pressed }) => [styles.deleteButton, { backgroundColor: pressed ? colors.border : 'transparent', borderRadius: borderRadius.sm }]}
+            >
+              <Text style={[styles.deleteIcon, { color: colors.danger, fontSize: fontSize.sm, fontWeight: fontWeight.medium }]}>\uD83D\uDDD1</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Card>
+    </Animated.View>
+  );
+}
+
 export default function ExpensesScreen() {
-  const colorScheme = useColorScheme() ?? 'light';
-  const isDark = colorScheme === 'dark';
-  const colors = Colors[colorScheme];
+  const { isDark, colors, spacing, borderRadius, fontSize, fontWeight } = useTheme();
   const router = useRouter();
 
   const user = useAuthStore((s) => s.user);
@@ -38,14 +123,12 @@ export default function ExpensesScreen() {
 
   const [selectedMonth, setSelectedMonth] = useState(() => new Date());
 
-  // Subscribe to expenses on mount
   useEffect(() => {
     if (!user?.uid) return;
     const unsubscribe = subscribeToExpenses(user.uid);
     return unsubscribe;
   }, [user?.uid]);
 
-  // Filter expenses for selected month and group by date
   const { monthlyTotal, groups } = useMemo(() => {
     const filtered = expenses.filter((e) => {
       const d = e.date.toDate();
@@ -70,7 +153,6 @@ export default function ExpensesScreen() {
       }
     }
 
-    // Sort by date key descending
     const sortedKeys = [...groupMap.keys()].sort((a, b) => b.localeCompare(a));
     const dateGroups: DateGroup[] = sortedKeys.map((key) => {
       const items = groupMap.get(key)!;
@@ -115,13 +197,13 @@ export default function ExpensesScreen() {
     [user?.uid, deleteExpense],
   );
 
-  // Flatten groups into FlatList data with section headers
   const flatData = useMemo(() => {
-    const items: ({ type: 'header'; dateLabel: string; key: string } | { type: 'expense'; expense: Expense; key: string })[] = [];
+    const items: ({ type: 'header'; dateLabel: string; key: string } | { type: 'expense'; expense: Expense; key: string; index: number })[] = [];
+    let itemIndex = 0;
     for (const group of groups) {
       items.push({ type: 'header', dateLabel: group.dateLabel, key: `header-${group.dateKey}` });
       for (const expense of group.data) {
-        items.push({ type: 'expense', expense, key: expense.id });
+        items.push({ type: 'expense', expense, key: expense.id, index: itemIndex++ });
       }
     }
     return items;
@@ -131,85 +213,76 @@ export default function ExpensesScreen() {
     ({ item }: { item: (typeof flatData)[number] }) => {
       if (item.type === 'header') {
         return (
-          <Text style={[styles.sectionHeader, { color: isDark ? '#8e8e93' : '#6e6e73' }]}>
+          <Text style={[styles.sectionHeader, { color: colors.textTertiary, fontSize: fontSize.xs, fontWeight: fontWeight.semibold, marginHorizontal: spacing.md }]}>
             {item.dateLabel}
           </Text>
         );
       }
 
-      const { expense } = item;
-      const cat = categoryMap.get(expense.category);
-
       return (
-        <Card
-          style={styles.expenseRow}
-          onPress={() => router.push(`/expense/${expense.id}`)}
-        >
-          <View style={styles.rowLeft}>
-            <Text style={styles.categoryIcon}>{cat?.icon ?? '📦'}</Text>
-            <View style={styles.rowText}>
-              <Text style={[styles.description, { color: colors.text }]} numberOfLines={1}>
-                {expense.description || cat?.name || 'Expense'}
-              </Text>
-              <Text style={[styles.categoryName, { color: isDark ? '#8e8e93' : '#6e6e73' }]}>
-                {cat?.name ?? expense.category}
-              </Text>
-            </View>
-          </View>
-          <View style={styles.rowRight}>
-            <Text style={[styles.amount, { color: '#ff3b30' }]}>
-              -{formatCurrency(expense.amount)}
-            </Text>
-            <TouchableOpacity
-              onPress={() => handleDelete(expense.id)}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              <Text style={styles.deleteIcon}>🗑</Text>
-            </TouchableOpacity>
-          </View>
-        </Card>
+        <AnimatedExpenseRow
+          expense={item.expense}
+          index={item.index}
+          onPress={() => router.push(`/expense/${item.expense.id}`)}
+          onDelete={() => handleDelete(item.expense.id)}
+          colors={colors}
+          spacing={spacing}
+          borderRadius={borderRadius}
+          fontSize={fontSize}
+          fontWeight={fontWeight}
+        />
       );
     },
-    [isDark, colors, router, handleDelete],
+    [colors, spacing, borderRadius, fontSize, fontWeight, router, handleDelete],
   );
 
   if (loading) {
     return (
       <View style={[styles.center, { backgroundColor: colors.background }]}>
-        <ActivityIndicator size="large" color={colors.tint} />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Monthly total */}
-      <Card style={styles.totalCard}>
-        <Text style={[styles.totalLabel, { color: isDark ? '#8e8e93' : '#6e6e73' }]}>
-          Monthly Spending
-        </Text>
-        <Text style={[styles.totalAmount, { color: colors.text }]}>
-          {formatCurrency(monthlyTotal)}
-        </Text>
-      </Card>
+      {/* Monthly total card with accent bar */}
+      <View style={[styles.totalCard, { backgroundColor: colors.surface, marginHorizontal: spacing.md, marginTop: spacing.md, borderRadius: borderRadius.lg, borderColor: colors.border, borderWidth: isDark ? 1 : 0 }]}>
+        {!isDark && <View style={styles.totalCardShadow} />}
+        <View style={[styles.totalAccentBar, { backgroundColor: colors.expense, borderTopLeftRadius: borderRadius.lg, borderBottomLeftRadius: borderRadius.lg }]} />
+        <View style={[styles.totalContent, { padding: spacing.lg }]}>
+          <Text style={[styles.totalLabel, { color: colors.textSecondary, fontSize: fontSize.sm, fontWeight: fontWeight.medium }]}>
+            Monthly Spending
+          </Text>
+          <Text style={[styles.totalAmount, { color: colors.expense, fontSize: fontSize.hero, fontWeight: fontWeight.heavy }]}>
+            {formatCurrency(monthlyTotal)}
+          </Text>
+        </View>
+      </View>
 
-      {/* Month selector */}
-      <View style={styles.monthSelector}>
-        <TouchableOpacity onPress={handlePrevMonth} style={styles.monthArrow}>
-          <Text style={[styles.monthArrowText, { color: colors.tint }]}>{'<'}</Text>
-        </TouchableOpacity>
-        <Text style={[styles.monthLabel, { color: colors.text }]}>
+      {/* Month selector pills */}
+      <View style={[styles.monthSelector, { paddingVertical: spacing.md }]}>
+        <Pressable
+          onPress={handlePrevMonth}
+          style={({ pressed }) => [styles.monthArrow, { backgroundColor: pressed ? colors.border : colors.surface, borderRadius: borderRadius.full, borderWidth: 1, borderColor: colors.border }]}
+        >
+          <Text style={[styles.monthArrowText, { color: colors.primary, fontSize: fontSize.lg }]}>{'\u2039'}</Text>
+        </Pressable>
+        <Text style={[styles.monthLabel, { color: colors.text, fontSize: fontSize.lg, fontWeight: fontWeight.semibold }]}>
           {formatMonthYear(selectedMonth)}
         </Text>
-        <TouchableOpacity onPress={handleNextMonth} style={styles.monthArrow}>
-          <Text style={[styles.monthArrowText, { color: colors.tint }]}>{'>'}</Text>
-        </TouchableOpacity>
+        <Pressable
+          onPress={handleNextMonth}
+          style={({ pressed }) => [styles.monthArrow, { backgroundColor: pressed ? colors.border : colors.surface, borderRadius: borderRadius.full, borderWidth: 1, borderColor: colors.border }]}
+        >
+          <Text style={[styles.monthArrowText, { color: colors.primary, fontSize: fontSize.lg }]}>{'\u203A'}</Text>
+        </Pressable>
       </View>
 
       {/* Expense list */}
       {flatData.length === 0 ? (
         <EmptyState
-          icon="💸"
+          icon="\uD83D\uDCB8"
           title="No expenses yet"
           subtitle="Tap the + button to add your first expense for this month."
         />
@@ -218,19 +291,24 @@ export default function ExpensesScreen() {
           data={flatData}
           keyExtractor={(item) => item.key}
           renderItem={renderItem}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={{ paddingBottom: 100 }}
           showsVerticalScrollIndicator={false}
         />
       )}
 
       {/* FAB */}
-      <TouchableOpacity
-        style={[styles.fab, { backgroundColor: colors.tint }]}
+      <Pressable
+        style={({ pressed }) => [
+          styles.fab,
+          {
+            backgroundColor: colors.primary,
+            transform: [{ scale: pressed ? 0.92 : 1 }],
+          },
+        ]}
         onPress={() => router.push('/expense/add')}
-        activeOpacity={0.8}
       >
         <Text style={styles.fabText}>+</Text>
-      </TouchableOpacity>
+      </Pressable>
     </View>
   );
 }
@@ -245,56 +323,67 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   totalCard: {
-    marginHorizontal: 16,
-    marginTop: 16,
-    alignItems: 'center',
+    overflow: 'hidden',
+    flexDirection: 'row',
+  },
+  totalCardShadow: {
+    ...StyleSheet.absoluteFillObject,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  totalAccentBar: {
+    width: 5,
+  },
+  totalContent: {
+    flex: 1,
   },
   totalLabel: {
-    fontSize: 14,
-    fontWeight: '500',
     marginBottom: 4,
   },
   totalAmount: {
-    fontSize: 32,
-    fontWeight: '700',
+    letterSpacing: -0.5,
   },
   monthSelector: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
     gap: 16,
   },
   monthArrow: {
-    padding: 8,
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   monthArrowText: {
-    fontSize: 22,
-    fontWeight: '600',
+    lineHeight: 22,
   },
   monthLabel: {
-    fontSize: 17,
-    fontWeight: '600',
     minWidth: 160,
     textAlign: 'center',
   },
   sectionHeader: {
-    fontSize: 13,
-    fontWeight: '600',
     textTransform: 'uppercase',
+    letterSpacing: 1,
     marginTop: 16,
-    marginBottom: 6,
-    marginHorizontal: 16,
-  },
-  listContent: {
-    paddingBottom: 100,
+    marginBottom: 8,
   },
   expenseRow: {
+    overflow: 'hidden',
+    flexDirection: 'row',
+    padding: 0,
+  },
+  accentBar: {
+    width: 4,
+  },
+  rowContent: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginHorizontal: 16,
-    marginBottom: 8,
   },
   rowLeft: {
     flexDirection: 'row',
@@ -303,50 +392,46 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   categoryIcon: {
-    fontSize: 28,
     marginRight: 12,
   },
   rowText: {
     flex: 1,
   },
   description: {
-    fontSize: 16,
-    fontWeight: '500',
+    marginBottom: 2,
   },
   categoryName: {
-    fontSize: 13,
-    marginTop: 2,
+    marginTop: 1,
   },
   rowRight: {
     alignItems: 'flex-end',
-    gap: 4,
+    gap: 6,
   },
-  amount: {
-    fontSize: 16,
-    fontWeight: '600',
+  amount: {},
+  deleteButton: {
+    paddingHorizontal: 6,
+    paddingVertical: 4,
   },
-  deleteIcon: {
-    fontSize: 16,
-  },
+  deleteIcon: {},
   fab: {
     position: 'absolute',
-    bottom: 24,
+    bottom: 28,
     right: 24,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 10,
   },
   fabText: {
     color: '#fff',
-    fontSize: 28,
+    fontSize: 30,
     fontWeight: '600',
-    lineHeight: 30,
+    lineHeight: 32,
   },
 });

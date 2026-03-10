@@ -1,16 +1,16 @@
-import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import {
   StyleSheet,
   View,
   Text,
   FlatList,
-  TouchableOpacity,
+  Pressable,
   Alert,
   ActivityIndicator,
+  Animated,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useColorScheme } from '@/components/useColorScheme';
-import Colors from '@/constants/Colors';
+import { useTheme } from '@/constants/useTheme';
 import { Card, EmptyState } from '@/src/components/ui';
 import { useIncomeStore } from '@/src/stores/incomeStore';
 import { useAuthStore } from '@/src/stores/authStore';
@@ -18,10 +18,92 @@ import { formatCurrency } from '@/src/utils/currency';
 import { formatDate, formatMonthYear } from '@/src/utils/date';
 import type { Income } from '@/src/types';
 
+function AnimatedIncomeRow({
+  item,
+  index,
+  onDelete,
+  colors,
+  spacing,
+  borderRadius,
+  fontSize,
+  fontWeight,
+}: {
+  item: Income;
+  index: number;
+  onDelete: () => void;
+  colors: ReturnType<typeof useTheme>['colors'];
+  spacing: ReturnType<typeof useTheme>['spacing'];
+  borderRadius: ReturnType<typeof useTheme>['borderRadius'];
+  fontSize: ReturnType<typeof useTheme>['fontSize'];
+  fontWeight: ReturnType<typeof useTheme>['fontWeight'];
+}) {
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 300,
+      delay: index * 60,
+      useNativeDriver: true,
+    }).start();
+  }, []);
+
+  return (
+    <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: fadeAnim.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }] }}>
+      <Card style={[styles.incomeRow, { marginHorizontal: spacing.md, marginBottom: spacing.sm }]}>
+        <View style={[styles.accentBar, { backgroundColor: colors.income, borderTopLeftRadius: borderRadius.md, borderBottomLeftRadius: borderRadius.md }]} />
+        <View style={[styles.rowContent, { paddingVertical: spacing.md, paddingRight: spacing.md, paddingLeft: spacing.md }]}>
+          <View style={styles.rowLeft}>
+            <Text style={[styles.sourceIcon, { fontSize: fontSize.xxl }]}>{'\uD83D\uDCB5'}</Text>
+            <View style={styles.rowText}>
+              <View style={styles.sourceRow}>
+                <Text style={[styles.source, { color: colors.text, fontSize: fontSize.md, fontWeight: fontWeight.bold }]} numberOfLines={1}>
+                  {item.source}
+                </Text>
+                {item.isRecurring && (
+                  <View style={[styles.badge, { backgroundColor: colors.primary + '18', borderRadius: borderRadius.full, paddingHorizontal: spacing.sm, paddingVertical: 2 }]}>
+                    <Text style={[styles.badgeText, { color: colors.primary, fontSize: fontSize.xs, fontWeight: fontWeight.semibold }]}>
+                      Recurring
+                    </Text>
+                  </View>
+                )}
+              </View>
+              {!!item.description && (
+                <Text
+                  style={[styles.description, { color: colors.textSecondary, fontSize: fontSize.sm }]}
+                  numberOfLines={1}
+                >
+                  {item.description}
+                </Text>
+              )}
+              <Text style={[styles.date, { color: colors.textTertiary, fontSize: fontSize.xs, marginTop: spacing.xs }]}>
+                {formatDate(item.date)}
+              </Text>
+            </View>
+          </View>
+          <View style={styles.rowRight}>
+            <Text style={[styles.amount, { color: colors.income, fontSize: fontSize.md, fontWeight: fontWeight.semibold }]}>
+              +{formatCurrency(item.amount)}
+            </Text>
+            <Pressable
+              onPress={(e) => {
+                e.stopPropagation();
+                onDelete();
+              }}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              style={({ pressed }) => [styles.deleteButton, { backgroundColor: pressed ? colors.border : 'transparent', borderRadius: borderRadius.sm }]}
+            >
+              <Text style={[styles.deleteIcon, { color: colors.danger, fontSize: fontSize.sm }]}>{'\uD83D\uDDD1'}</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Card>
+    </Animated.View>
+  );
+}
+
 export default function IncomeScreen() {
-  const colorScheme = useColorScheme() ?? 'light';
-  const isDark = colorScheme === 'dark';
-  const colors = Colors[colorScheme];
+  const { isDark, colors, spacing, borderRadius, fontSize, fontWeight } = useTheme();
   const router = useRouter();
 
   const user = useAuthStore((s) => s.user);
@@ -29,14 +111,12 @@ export default function IncomeScreen() {
 
   const [selectedMonth, setSelectedMonth] = useState(() => new Date());
 
-  // Subscribe to incomes on mount
   useEffect(() => {
     if (!user?.uid) return;
     const unsubscribe = subscribeToIncome(user.uid);
     return unsubscribe;
   }, [user?.uid]);
 
-  // Filter for selected month
   const { monthlyTotal, filtered } = useMemo(() => {
     const monthIncomes = incomes.filter((i) => {
       const d = i.date.toDate();
@@ -86,89 +166,68 @@ export default function IncomeScreen() {
   );
 
   const renderItem = useCallback(
-    ({ item }: { item: Income }) => (
-      <Card style={styles.incomeRow}>
-        <View style={styles.rowLeft}>
-          <Text style={styles.sourceIcon}>💵</Text>
-          <View style={styles.rowText}>
-            <View style={styles.sourceRow}>
-              <Text style={[styles.source, { color: colors.text }]} numberOfLines={1}>
-                {item.source}
-              </Text>
-              {item.isRecurring && (
-                <View style={[styles.badge, { backgroundColor: isDark ? '#1a3a2a' : '#d4f5e2' }]}>
-                  <Text style={[styles.badgeText, { color: isDark ? '#34c759' : '#137a30' }]}>
-                    Recurring
-                  </Text>
-                </View>
-              )}
-            </View>
-            {!!item.description && (
-              <Text
-                style={[styles.description, { color: isDark ? '#8e8e93' : '#6e6e73' }]}
-                numberOfLines={1}
-              >
-                {item.description}
-              </Text>
-            )}
-            <Text style={[styles.date, { color: isDark ? '#8e8e93' : '#6e6e73' }]}>
-              {formatDate(item.date)}
-            </Text>
-          </View>
-        </View>
-        <View style={styles.rowRight}>
-          <Text style={[styles.amount, { color: '#34c759' }]}>
-            +{formatCurrency(item.amount)}
-          </Text>
-          <TouchableOpacity
-            onPress={() => handleDelete(item.id)}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <Text style={styles.deleteIcon}>🗑</Text>
-          </TouchableOpacity>
-        </View>
-      </Card>
+    ({ item, index }: { item: Income; index: number }) => (
+      <AnimatedIncomeRow
+        item={item}
+        index={index}
+        onDelete={() => handleDelete(item.id)}
+        colors={colors}
+        spacing={spacing}
+        borderRadius={borderRadius}
+        fontSize={fontSize}
+        fontWeight={fontWeight}
+      />
     ),
-    [colors, isDark, handleDelete],
+    [colors, spacing, borderRadius, fontSize, fontWeight, handleDelete],
   );
 
   if (loading) {
     return (
       <View style={[styles.center, { backgroundColor: colors.background }]}>
-        <ActivityIndicator size="large" color={colors.tint} />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Monthly total */}
-      <Card style={styles.totalCard}>
-        <Text style={[styles.totalLabel, { color: isDark ? '#8e8e93' : '#6e6e73' }]}>
-          Monthly Income
-        </Text>
-        <Text style={[styles.totalAmount, { color: '#34c759' }]}>
-          {formatCurrency(monthlyTotal)}
-        </Text>
-      </Card>
+      {/* Monthly total card with accent bar */}
+      <View style={[styles.totalCard, { backgroundColor: colors.surface, marginHorizontal: spacing.md, marginTop: spacing.md, borderRadius: borderRadius.lg, borderColor: colors.border, borderWidth: isDark ? 1 : 0 }]}>
+        {!isDark && <View style={styles.totalCardShadow} />}
+        <View style={[styles.totalAccentBar, { backgroundColor: colors.income, borderTopLeftRadius: borderRadius.lg, borderBottomLeftRadius: borderRadius.lg }]} />
+        <View style={[styles.totalContent, { padding: spacing.lg }]}>
+          <Text style={[styles.totalLabel, { color: colors.textSecondary, fontSize: fontSize.sm, fontWeight: fontWeight.medium }]}>
+            Monthly Income
+          </Text>
+          <Text style={[styles.totalAmount, { color: colors.income, fontSize: fontSize.hero, fontWeight: fontWeight.heavy }]}>
+            {formatCurrency(monthlyTotal)}
+          </Text>
+        </View>
+      </View>
 
-      {/* Month selector */}
-      <View style={styles.monthSelector}>
-        <TouchableOpacity onPress={handlePrevMonth} style={styles.monthArrow}>
-          <Text style={[styles.monthArrowText, { color: colors.tint }]}>{'<'}</Text>
-        </TouchableOpacity>
-        <Text style={[styles.monthLabel, { color: colors.text }]}>
+      {/* Month selector pills */}
+      <View style={[styles.monthSelector, { paddingVertical: spacing.md }]}>
+        <Pressable
+          onPress={handlePrevMonth}
+          style={({ pressed }) => [styles.monthArrow, { backgroundColor: pressed ? colors.border : colors.surface, borderRadius: borderRadius.full, borderWidth: 1, borderColor: colors.border }]}
+        >
+          <Text style={[styles.monthArrowText, { color: colors.primary, fontSize: fontSize.lg }]}>{'\u2039'}</Text>
+        </Pressable>
+        <Text style={[styles.monthLabel, { color: colors.text, fontSize: fontSize.lg, fontWeight: fontWeight.semibold }]}>
           {formatMonthYear(selectedMonth)}
         </Text>
-        <TouchableOpacity onPress={handleNextMonth} style={styles.monthArrow}>
-          <Text style={[styles.monthArrowText, { color: colors.tint }]}>{'>'}</Text>
-        </TouchableOpacity>
+        <Pressable
+          onPress={handleNextMonth}
+          style={({ pressed }) => [styles.monthArrow, { backgroundColor: pressed ? colors.border : colors.surface, borderRadius: borderRadius.full, borderWidth: 1, borderColor: colors.border }]}
+        >
+          <Text style={[styles.monthArrowText, { color: colors.primary, fontSize: fontSize.lg }]}>{'\u203A'}</Text>
+        </Pressable>
       </View>
 
       {/* Income list */}
       {filtered.length === 0 ? (
         <EmptyState
-          icon="💰"
+          icon="\uD83D\uDCB0"
           title="No income yet"
           subtitle="Tap the + button to add your first income entry for this month."
         />
@@ -177,19 +236,24 @@ export default function IncomeScreen() {
           data={filtered}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={{ paddingBottom: 100 }}
           showsVerticalScrollIndicator={false}
         />
       )}
 
       {/* FAB */}
-      <TouchableOpacity
-        style={[styles.fab, { backgroundColor: colors.tint }]}
+      <Pressable
+        style={({ pressed }) => [
+          styles.fab,
+          {
+            backgroundColor: colors.primary,
+            transform: [{ scale: pressed ? 0.92 : 1 }],
+          },
+        ]}
         onPress={() => router.push('/income/add')}
-        activeOpacity={0.8}
       >
         <Text style={styles.fabText}>+</Text>
-      </TouchableOpacity>
+      </Pressable>
     </View>
   );
 }
@@ -204,48 +268,61 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   totalCard: {
-    marginHorizontal: 16,
-    marginTop: 16,
-    alignItems: 'center',
+    overflow: 'hidden',
+    flexDirection: 'row',
+  },
+  totalCardShadow: {
+    ...StyleSheet.absoluteFillObject,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  totalAccentBar: {
+    width: 5,
+  },
+  totalContent: {
+    flex: 1,
   },
   totalLabel: {
-    fontSize: 14,
-    fontWeight: '500',
     marginBottom: 4,
   },
   totalAmount: {
-    fontSize: 32,
-    fontWeight: '700',
+    letterSpacing: -0.5,
   },
   monthSelector: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
     gap: 16,
   },
   monthArrow: {
-    padding: 8,
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   monthArrowText: {
-    fontSize: 22,
-    fontWeight: '600',
+    lineHeight: 22,
   },
   monthLabel: {
-    fontSize: 17,
-    fontWeight: '600',
     minWidth: 160,
     textAlign: 'center',
   },
-  listContent: {
-    paddingBottom: 100,
-  },
   incomeRow: {
+    overflow: 'hidden',
+    flexDirection: 'row',
+    padding: 0,
+  },
+  accentBar: {
+    width: 4,
+  },
+  rowContent: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginHorizontal: 16,
-    marginBottom: 8,
   },
   rowLeft: {
     flexDirection: 'row',
@@ -254,7 +331,6 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   sourceIcon: {
-    fontSize: 28,
     marginRight: 12,
   },
   rowText: {
@@ -266,57 +342,43 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   source: {
-    fontSize: 16,
-    fontWeight: '500',
     flexShrink: 1,
   },
-  badge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
-  },
-  badgeText: {
-    fontSize: 11,
-    fontWeight: '600',
-  },
+  badge: {},
+  badgeText: {},
   description: {
-    fontSize: 13,
     marginTop: 2,
   },
-  date: {
-    fontSize: 12,
-    marginTop: 2,
-  },
+  date: {},
   rowRight: {
     alignItems: 'flex-end',
-    gap: 4,
+    gap: 6,
   },
-  amount: {
-    fontSize: 16,
-    fontWeight: '600',
+  amount: {},
+  deleteButton: {
+    paddingHorizontal: 6,
+    paddingVertical: 4,
   },
-  deleteIcon: {
-    fontSize: 16,
-  },
+  deleteIcon: {},
   fab: {
     position: 'absolute',
-    bottom: 24,
+    bottom: 28,
     right: 24,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 10,
   },
   fabText: {
     color: '#fff',
-    fontSize: 28,
+    fontSize: 30,
     fontWeight: '600',
-    lineHeight: 30,
+    lineHeight: 32,
   },
 });

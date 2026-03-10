@@ -5,23 +5,21 @@ import {
   Text,
   ScrollView,
   Switch,
+  Pressable,
   Alert,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Timestamp } from 'firebase/firestore';
-import { useColorScheme } from '@/components/useColorScheme';
-import Colors from '@/constants/Colors';
+import { useTheme } from '@/constants/useTheme';
 import { AmountInput, Button, Input } from '@/src/components/ui';
 import { useIncomeStore } from '@/src/stores/incomeStore';
 import { useAuthStore } from '@/src/stores/authStore';
 import { formatDate } from '@/src/utils/date';
 
 export default function AddIncomeScreen() {
-  const colorScheme = useColorScheme() ?? 'light';
-  const isDark = colorScheme === 'dark';
-  const colors = Colors[colorScheme];
+  const { colors, spacing, borderRadius, fontSize, fontWeight } = useTheme();
   const router = useRouter();
 
   const user = useAuthStore((s) => s.user);
@@ -33,20 +31,26 @@ export default function AddIncomeScreen() {
   const [date] = useState(new Date());
   const [isRecurring, setIsRecurring] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [errors, setErrors] = useState<{ amount?: string; source?: string }>({});
+
+  const validate = (): boolean => {
+    const newErrors: { amount?: string; source?: string } = {};
+    const parsedAmount = parseFloat(amount);
+    if (!parsedAmount || parsedAmount <= 0) {
+      newErrors.amount = 'Enter an amount greater than zero';
+    }
+    if (!source.trim()) {
+      newErrors.source = 'Please enter an income source';
+    }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleSave = async () => {
     if (!user?.uid) return;
+    if (!validate()) return;
 
     const parsedAmount = parseFloat(amount);
-    if (!parsedAmount || parsedAmount <= 0) {
-      Alert.alert('Invalid Amount', 'Please enter an amount greater than zero.');
-      return;
-    }
-    if (!source.trim()) {
-      Alert.alert('No Source', 'Please enter an income source.');
-      return;
-    }
-
     setSaving(true);
     try {
       await addIncome(user.uid, {
@@ -69,47 +73,71 @@ export default function AddIncomeScreen() {
       style={[styles.container, { backgroundColor: colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <AmountInput label="Amount" value={amount} onChangeText={setAmount} />
+      <ScrollView contentContainerStyle={[styles.content, { padding: spacing.md, paddingBottom: 40 }]} keyboardShouldPersistTaps="handled">
+        {/* Hero amount */}
+        <View style={[styles.amountSection, { marginBottom: spacing.lg }]}>
+          <AmountInput label="Amount" value={amount} onChangeText={(val) => { setAmount(val); if (errors.amount) setErrors((e) => ({ ...e, amount: undefined })); }} />
+          {errors.amount && (
+            <Text style={[styles.errorText, { color: colors.danger, fontSize: fontSize.sm, marginTop: spacing.xs }]}>{errors.amount}</Text>
+          )}
+        </View>
 
-        <Input
-          label="Source"
-          placeholder="e.g. Salary, Freelance, Dividends"
-          value={source}
-          onChangeText={setSource}
-        />
+        {/* Source */}
+        <View style={[styles.fieldSection, { marginBottom: spacing.md }]}>
+          <Input
+            label="Source"
+            placeholder="e.g. Salary, Freelance, Dividends"
+            value={source}
+            onChangeText={(val) => { setSource(val); if (errors.source) setErrors((e) => ({ ...e, source: undefined })); }}
+          />
+          {errors.source && (
+            <Text style={[styles.errorText, { color: colors.danger, fontSize: fontSize.sm, marginTop: spacing.xs }]}>{errors.source}</Text>
+          )}
+        </View>
 
-        <Input
-          label="Description"
-          placeholder="Optional description"
-          value={description}
-          onChangeText={setDescription}
-        />
+        {/* Description */}
+        <View style={[styles.fieldSection, { marginBottom: spacing.md }]}>
+          <Input
+            label="Description"
+            placeholder="Optional description"
+            value={description}
+            onChangeText={setDescription}
+          />
+        </View>
 
-        <Input
-          label="Date"
-          placeholder="Date"
-          value={formatDate(date)}
-          onChangeText={() => {}}
-        />
+        {/* Date */}
+        <View style={[styles.fieldSection, { marginBottom: spacing.md }]}>
+          <Text style={[styles.fieldLabel, { color: colors.text, fontSize: fontSize.sm, fontWeight: fontWeight.semibold, marginBottom: spacing.sm }]}>Date</Text>
+          <Pressable style={[styles.dateDisplay, { backgroundColor: colors.surface, borderRadius: borderRadius.md, borderWidth: 1, borderColor: colors.border, paddingVertical: spacing.md, paddingHorizontal: spacing.md }]}>
+            <Text style={[styles.dateEmoji, { fontSize: fontSize.lg }]}>{'\uD83D\uDCC5'}</Text>
+            <Text style={[styles.dateText, { color: colors.text, fontSize: fontSize.md, fontWeight: fontWeight.medium }]}>{formatDate(date)}</Text>
+            <Text style={[styles.todayBadge, { color: colors.primary, fontSize: fontSize.xs, fontWeight: fontWeight.semibold }]}>Today</Text>
+          </Pressable>
+        </View>
 
-        <View style={styles.switchRow}>
-          <Text style={[styles.switchLabel, { color: colors.text }]}>Recurring Income</Text>
+        {/* Recurring toggle */}
+        <View style={[styles.switchRow, { backgroundColor: colors.surface, borderRadius: borderRadius.md, borderWidth: 1, borderColor: colors.border, padding: spacing.md, marginBottom: spacing.lg }]}>
+          <View style={styles.switchLabelWrap}>
+            <Text style={[styles.switchLabel, { color: colors.text, fontSize: fontSize.md, fontWeight: fontWeight.medium }]}>Recurring Income</Text>
+            <Text style={[styles.switchHint, { color: colors.textTertiary, fontSize: fontSize.xs }]}>Repeats every month</Text>
+          </View>
           <Switch
             value={isRecurring}
             onValueChange={setIsRecurring}
-            trackColor={{ false: isDark ? '#38383a' : '#d1d1d6', true: '#34c759' }}
+            trackColor={{ false: colors.border, true: colors.income }}
             thumbColor="#fff"
           />
         </View>
 
-        <View style={styles.actions}>
+        {/* Actions */}
+        <View style={[styles.actions, { gap: spacing.md }]}>
           <Button title="Save Income" onPress={handleSave} loading={saving} disabled={saving} />
-          <Button
-            title="Cancel"
+          <Pressable
             onPress={() => router.back()}
-            variant="secondary"
-          />
+            style={({ pressed }) => [styles.ghostButton, { opacity: pressed ? 0.6 : 1, paddingVertical: spacing.md }]}
+          >
+            <Text style={[styles.ghostButtonText, { color: colors.textSecondary, fontSize: fontSize.md, fontWeight: fontWeight.semibold }]}>Cancel</Text>
+          </Pressable>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -120,23 +148,42 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  content: {
-    padding: 16,
-    paddingBottom: 40,
+  content: {},
+  amountSection: {
+    alignItems: 'center',
   },
+  fieldSection: {},
+  fieldLabel: {},
+  errorText: {},
+  dateDisplay: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  dateEmoji: {},
+  dateText: {
+    flex: 1,
+  },
+  todayBadge: {},
   switchRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 12,
-    marginBottom: 8,
   },
-  switchLabel: {
-    fontSize: 16,
-    fontWeight: '500',
+  switchLabelWrap: {
+    flex: 1,
+    marginRight: 12,
+  },
+  switchLabel: {},
+  switchHint: {
+    marginTop: 2,
   },
   actions: {
-    marginTop: 24,
-    gap: 12,
+    marginTop: 8,
   },
+  ghostButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ghostButtonText: {},
 });

@@ -1,55 +1,102 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+  Image,
+  Animated,
+} from 'react-native';
 import { useAuthStore } from '@/src/stores/authStore';
+import { useTheme } from '@/constants/useTheme';
 
 export default function SettingsScreen() {
   const { user, signOut } = useAuthStore();
+  const { colors, spacing, borderRadius, fontSize, fontWeight } = useTheme();
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 400,
+      useNativeDriver: true,
+    }).start();
+  }, []);
+
+  const initial =
+    user?.displayName?.[0]?.toUpperCase() ??
+    user?.email?.[0]?.toUpperCase() ??
+    '?';
 
   return (
-    <ScrollView style={styles.container}>
-      {/* User Info */}
-      <View style={styles.section}>
-        <View style={styles.userCard}>
+    <ScrollView
+      style={[styles.container, { backgroundColor: colors.background }]}
+      contentContainerStyle={styles.contentContainer}
+    >
+      <Animated.View style={{ opacity: fadeAnim }}>
+        {/* Profile Card */}
+        <View style={[styles.profileCard, { backgroundColor: colors.surfaceElevated }]}>
           {user?.photoURL ? (
             <Image source={{ uri: user.photoURL }} style={styles.avatar} />
           ) : (
-            <View style={styles.avatarPlaceholder}>
-              <Text style={styles.avatarText}>
-                {user?.displayName?.[0]?.toUpperCase() ?? user?.email?.[0]?.toUpperCase() ?? '?'}
+            <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
+              <Text style={[styles.avatarInitial, { color: colors.background }]}>
+                {initial}
               </Text>
             </View>
           )}
-          <View style={styles.userInfo}>
-            <Text style={styles.userName}>
-              {user?.displayName ?? 'Anonymous User'}
-            </Text>
-            <Text style={styles.userEmail}>
-              {user?.email || 'No email'}
-            </Text>
+          <Text style={[styles.displayName, { color: colors.text }]}>
+            {user?.displayName ?? 'Anonymous User'}
+          </Text>
+          <Text style={[styles.email, { color: colors.textSecondary }]}>
+            {user?.email || 'No email'}
+          </Text>
+        </View>
+
+        {/* Preferences Section */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionHeader, { color: colors.textTertiary }]}>
+            PREFERENCES
+          </Text>
+          <View style={[styles.card, { backgroundColor: colors.surface }]}>
+            <TouchableOpacity style={styles.row} activeOpacity={0.6}>
+              <Text style={[styles.rowLabel, { color: colors.text }]}>Theme</Text>
+              <View style={styles.rowRight}>
+                <Text style={[styles.rowValue, { color: colors.textSecondary }]}>
+                  System
+                </Text>
+                <Text style={[styles.chevron, { color: colors.textTertiary }]}>
+                  {'\u203A'}
+                </Text>
+              </View>
+            </TouchableOpacity>
           </View>
         </View>
-      </View>
 
-      {/* Preferences */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Preferences</Text>
-        <View style={styles.menuItem}>
-          <Text style={styles.menuItemText}>Theme</Text>
-          <Text style={styles.menuItemValue}>System</Text>
+        {/* Account Section */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionHeader, { color: colors.textTertiary }]}>
+            ACCOUNT
+          </Text>
+          <View style={[styles.card, { backgroundColor: colors.surface }]}>
+            <TouchableOpacity
+              style={styles.row}
+              activeOpacity={0.6}
+              onPress={signOut}
+            >
+              <Text style={[styles.rowLabel, { color: colors.danger }]}>
+                Sign Out
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
 
-      {/* Sign Out */}
-      <View style={styles.section}>
-        <TouchableOpacity style={styles.signOutButton} onPress={signOut}>
-          <Text style={styles.signOutText}>Sign Out</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* App Info */}
-      <View style={styles.section}>
-        <Text style={styles.versionText}>Finance Tracker v1.0.0</Text>
-      </View>
+        {/* Footer */}
+        <Text style={[styles.footer, { color: colors.textTertiary }]}>
+          Finance Tracker v1.0.0
+        </Text>
+      </Animated.View>
     </ScrollView>
   );
 }
@@ -57,91 +104,81 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
   },
-  section: {
-    marginTop: 24,
-    paddingHorizontal: 16,
+  contentContainer: {
+    paddingHorizontal: 20,
+    paddingTop: 32,
+    paddingBottom: 48,
   },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#888',
-    textTransform: 'uppercase',
-    marginBottom: 8,
-  },
-  userCard: {
-    flexDirection: 'row',
+  profileCard: {
     alignItems: 'center',
-    backgroundColor: '#fff',
-    padding: 16,
-    borderRadius: 12,
+    paddingVertical: 28,
+    paddingHorizontal: 20,
+    borderRadius: 16,
+    marginBottom: 32,
   },
   avatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-  },
-  avatarPlaceholder: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#4285F4',
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     justifyContent: 'center',
     alignItems: 'center',
+    marginBottom: 14,
   },
-  avatarText: {
-    color: '#fff',
-    fontSize: 22,
-    fontWeight: 'bold',
+  avatarInitial: {
+    fontSize: 26,
+    fontWeight: '700',
   },
-  userInfo: {
-    marginLeft: 16,
-    flex: 1,
+  displayName: {
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 4,
   },
-  userName: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1a1a1a',
-  },
-  userEmail: {
+  email: {
     fontSize: 14,
-    color: '#666',
-    marginTop: 2,
   },
-  menuItem: {
+  section: {
+    marginBottom: 28,
+  },
+  sectionHeader: {
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 0.8,
+    marginBottom: 8,
+    marginLeft: 4,
+  },
+  card: {
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  row: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    justifyContent: 'space-between',
     paddingVertical: 14,
     paddingHorizontal: 16,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#e0e0e0',
+    minHeight: 48,
   },
-  menuItemText: {
+  rowLabel: {
     fontSize: 16,
-    color: '#1a1a1a',
+    fontWeight: '500',
   },
-  menuItemValue: {
-    fontSize: 16,
-    color: '#888',
-  },
-  signOutButton: {
-    backgroundColor: '#fff',
-    paddingVertical: 14,
-    borderRadius: 12,
+  rowRight: {
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: 6,
   },
-  signOutText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FF3B30',
+  rowValue: {
+    fontSize: 15,
   },
-  versionText: {
+  chevron: {
+    fontSize: 20,
+    fontWeight: '500',
+  },
+  footer: {
     textAlign: 'center',
-    color: '#aaa',
-    fontSize: 13,
-    marginTop: 8,
+    fontSize: 12,
+    marginTop: 12,
   },
 });
+

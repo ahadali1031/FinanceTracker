@@ -1,16 +1,16 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import {
   StyleSheet,
-  TouchableOpacity,
+  Pressable,
   Text,
   ActivityIndicator,
   ViewStyle,
   StyleProp,
+  Animated,
 } from 'react-native';
-import { useColorScheme } from '@/components/useColorScheme';
-import Colors from '@/constants/Colors';
+import { useTheme } from '@/constants/useTheme';
 
-type ButtonVariant = 'primary' | 'secondary' | 'danger';
+type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost';
 
 interface ButtonProps {
   title: string;
@@ -29,66 +29,118 @@ export function Button({
   loading = false,
   style,
 }: ButtonProps) {
-  const colorScheme = useColorScheme() ?? 'light';
-  const colors = Colors[colorScheme];
+  const { isDark, colors, borderRadius, fontSize, fontWeight, spacing } = useTheme();
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  const handlePressIn = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 0.96,
+      useNativeDriver: true,
+      speed: 50,
+      bounciness: 4,
+    }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      useNativeDriver: true,
+      speed: 50,
+      bounciness: 4,
+    }).start();
+  };
 
   const getBackgroundColor = (): string => {
-    if (disabled) return '#a0a0a0';
+    if (disabled) return isDark ? '#2D2D44' : '#D1D5DB';
     switch (variant) {
       case 'primary':
-        return colors.tint;
+        return colors.primary;
       case 'secondary':
-        return colorScheme === 'dark' ? '#38383a' : '#e5e5ea';
+        return isDark ? colors.surfaceElevated : '#F3F4F6';
       case 'danger':
-        return '#ff3b30';
+        return colors.danger;
+      case 'ghost':
+        return 'transparent';
     }
   };
 
   const getTextColor = (): string => {
-    if (disabled) return '#d0d0d0';
+    if (disabled) return isDark ? '#6B7280' : '#9CA3AF';
     switch (variant) {
       case 'primary':
-        return '#fff';
+        return '#FFFFFF';
       case 'secondary':
         return colors.text;
       case 'danger':
-        return '#fff';
+        return '#FFFFFF';
+      case 'ghost':
+        return colors.primary;
     }
   };
 
   const textColor = getTextColor();
 
+  const getShadowStyle = (): ViewStyle => {
+    if (variant === 'primary' && !disabled && !isDark) {
+      return {
+        shadowColor: colors.primary,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 4,
+      };
+    }
+    return {};
+  };
+
   return (
-    <TouchableOpacity
-      style={[
-        styles.button,
-        { backgroundColor: getBackgroundColor() },
-        style,
-      ]}
-      onPress={onPress}
-      disabled={disabled || loading}
-      activeOpacity={0.7}
-    >
-      {loading ? (
-        <ActivityIndicator color={textColor} />
-      ) : (
-        <Text style={[styles.text, { color: textColor }]}>{title}</Text>
-      )}
-    </TouchableOpacity>
+    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+      <Pressable
+        style={[
+          styles.button,
+          {
+            backgroundColor: getBackgroundColor(),
+            borderRadius: borderRadius.md,
+          },
+          variant === 'ghost' && { paddingHorizontal: spacing.sm },
+          getShadowStyle(),
+          style,
+        ]}
+        onPress={onPress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        disabled={disabled || loading}
+      >
+        {loading ? (
+          <ActivityIndicator color={textColor} />
+        ) : (
+          <Text
+            style={[
+              styles.text,
+              {
+                color: textColor,
+                fontSize: fontSize.md,
+                fontWeight: fontWeight.semibold,
+              },
+            ]}
+          >
+            {title}
+          </Text>
+        )}
+      </Pressable>
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
   button: {
-    borderRadius: 10,
-    paddingVertical: 14,
+    paddingVertical: 16,
     paddingHorizontal: 24,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 48,
+    minHeight: 52,
   },
   text: {
-    fontSize: 16,
-    fontWeight: '600',
+    letterSpacing: 0.3,
   },
 });

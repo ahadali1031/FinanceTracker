@@ -4,6 +4,7 @@ import {
   View,
   Text,
   ScrollView,
+  Pressable,
   Alert,
   KeyboardAvoidingView,
   Platform,
@@ -11,8 +12,7 @@ import {
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Timestamp } from 'firebase/firestore';
-import { useColorScheme } from '@/components/useColorScheme';
-import Colors from '@/constants/Colors';
+import { useTheme } from '@/constants/useTheme';
 import { AmountInput, Button, Input, CategoryPicker } from '@/src/components/ui';
 import { useExpenseStore } from '@/src/stores/expenseStore';
 import { useAuthStore } from '@/src/stores/authStore';
@@ -20,8 +20,7 @@ import { EXPENSE_CATEGORIES } from '@/src/utils/categories';
 import { formatDate } from '@/src/utils/date';
 
 export default function EditExpenseScreen() {
-  const colorScheme = useColorScheme() ?? 'light';
-  const colors = Colors[colorScheme];
+  const { colors, spacing, borderRadius, fontSize, fontWeight } = useTheme();
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
 
@@ -36,8 +35,8 @@ export default function EditExpenseScreen() {
   const [date, setDate] = useState(new Date());
   const [saving, setSaving] = useState(false);
   const [initialized, setInitialized] = useState(false);
+  const [errors, setErrors] = useState<{ amount?: string; category?: string }>({});
 
-  // Pre-fill form when expense loads
   useEffect(() => {
     if (expense && !initialized) {
       setAmount(expense.amount.toFixed(2));
@@ -48,19 +47,24 @@ export default function EditExpenseScreen() {
     }
   }, [expense, initialized]);
 
-  const handleSave = async () => {
-    if (!user?.uid || !id) return;
-
+  const validate = (): boolean => {
+    const newErrors: { amount?: string; category?: string } = {};
     const parsedAmount = parseFloat(amount);
     if (!parsedAmount || parsedAmount <= 0) {
-      Alert.alert('Invalid Amount', 'Please enter an amount greater than zero.');
-      return;
+      newErrors.amount = 'Enter an amount greater than zero';
     }
     if (!category) {
-      Alert.alert('No Category', 'Please select a category.');
-      return;
+      newErrors.category = 'Please select a category';
     }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
+  const handleSave = async () => {
+    if (!user?.uid || !id) return;
+    if (!validate()) return;
+
+    const parsedAmount = parseFloat(amount);
     setSaving(true);
     try {
       await updateExpense(user.uid, id, {
@@ -99,8 +103,10 @@ export default function EditExpenseScreen() {
   if (!expense) {
     return (
       <View style={[styles.center, { backgroundColor: colors.background }]}>
-        <ActivityIndicator size="large" color={colors.tint} />
-        <Text style={[styles.loadingText, { color: colors.text }]}>Loading expense...</Text>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={[styles.loadingText, { color: colors.textSecondary, fontSize: fontSize.md, marginTop: spacing.md }]}>
+          Loading expense...
+        </Text>
       </View>
     );
   }
@@ -110,34 +116,57 @@ export default function EditExpenseScreen() {
       style={[styles.container, { backgroundColor: colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <AmountInput label="Amount" value={amount} onChangeText={setAmount} />
+      <ScrollView contentContainerStyle={[styles.content, { padding: spacing.md, paddingBottom: 40 }]} keyboardShouldPersistTaps="handled">
+        {/* Hero amount */}
+        <View style={[styles.amountSection, { marginBottom: spacing.lg }]}>
+          <AmountInput label="Amount" value={amount} onChangeText={(val) => { setAmount(val); if (errors.amount) setErrors((e) => ({ ...e, amount: undefined })); }} />
+          {errors.amount && (
+            <Text style={[styles.errorText, { color: colors.danger, fontSize: fontSize.sm, marginTop: spacing.xs }]}>{errors.amount}</Text>
+          )}
+        </View>
 
-        <Text style={[styles.fieldLabel, { color: colors.text }]}>Category</Text>
-        <CategoryPicker
-          categories={[...EXPENSE_CATEGORIES]}
-          selected={category}
-          onSelect={setCategory}
-        />
+        {/* Category */}
+        <View style={[styles.fieldSection, { marginBottom: spacing.md }]}>
+          <Text style={[styles.fieldLabel, { color: colors.text, fontSize: fontSize.sm, fontWeight: fontWeight.semibold, marginBottom: spacing.sm }]}>Category</Text>
+          <CategoryPicker
+            categories={[...EXPENSE_CATEGORIES]}
+            selected={category}
+            onSelect={(val) => { setCategory(val); if (errors.category) setErrors((e) => ({ ...e, category: undefined })); }}
+          />
+          {errors.category && (
+            <Text style={[styles.errorText, { color: colors.danger, fontSize: fontSize.sm, marginTop: spacing.xs }]}>{errors.category}</Text>
+          )}
+        </View>
 
-        <Input
-          label="Description"
-          placeholder="What was this expense for?"
-          value={description}
-          onChangeText={setDescription}
-        />
+        {/* Description */}
+        <View style={[styles.fieldSection, { marginBottom: spacing.md }]}>
+          <Input
+            label="Description"
+            placeholder="What was this expense for?"
+            value={description}
+            onChangeText={setDescription}
+          />
+        </View>
 
-        <Input
-          label="Date"
-          placeholder="Date"
-          value={formatDate(date)}
-          onChangeText={() => {}}
-        />
+        {/* Date */}
+        <View style={[styles.fieldSection, { marginBottom: spacing.lg }]}>
+          <Text style={[styles.fieldLabel, { color: colors.text, fontSize: fontSize.sm, fontWeight: fontWeight.semibold, marginBottom: spacing.sm }]}>Date</Text>
+          <View style={[styles.dateDisplay, { backgroundColor: colors.surface, borderRadius: borderRadius.md, borderWidth: 1, borderColor: colors.border, paddingVertical: spacing.md, paddingHorizontal: spacing.md }]}>
+            <Text style={[styles.dateEmoji, { fontSize: fontSize.lg }]}>{'\uD83D\uDCC5'}</Text>
+            <Text style={[styles.dateText, { color: colors.text, fontSize: fontSize.md, fontWeight: fontWeight.medium }]}>{formatDate(date)}</Text>
+          </View>
+        </View>
 
-        <View style={styles.actions}>
+        {/* Actions */}
+        <View style={[styles.actions, { gap: spacing.md }]}>
           <Button title="Save Changes" onPress={handleSave} loading={saving} disabled={saving} />
           <Button title="Delete Expense" onPress={handleDelete} variant="danger" />
-          <Button title="Cancel" onPress={() => router.back()} variant="secondary" />
+          <Pressable
+            onPress={() => router.back()}
+            style={({ pressed }) => [styles.ghostButton, { opacity: pressed ? 0.6 : 1, paddingVertical: spacing.md }]}
+          >
+            <Text style={[styles.ghostButtonText, { color: colors.textSecondary, fontSize: fontSize.md, fontWeight: fontWeight.semibold }]}>Cancel</Text>
+          </Pressable>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -153,21 +182,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 15,
+  loadingText: {},
+  content: {},
+  amountSection: {
+    alignItems: 'center',
   },
-  content: {
-    padding: 16,
-    paddingBottom: 40,
+  fieldSection: {},
+  fieldLabel: {},
+  errorText: {},
+  dateDisplay: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
   },
-  fieldLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    marginBottom: 6,
+  dateEmoji: {},
+  dateText: {
+    flex: 1,
   },
   actions: {
-    marginTop: 24,
-    gap: 12,
+    marginTop: 8,
   },
+  ghostButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ghostButtonText: {},
 });

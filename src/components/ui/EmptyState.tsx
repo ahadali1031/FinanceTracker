@@ -1,7 +1,6 @@
 import React from 'react';
 import { StyleSheet, View, Text } from 'react-native';
-import { useColorScheme } from '@/components/useColorScheme';
-import Colors from '@/constants/Colors';
+import { useTheme } from '@/constants/useTheme';
 import { Button } from './Button';
 
 interface EmptyStateProps {
@@ -19,15 +18,43 @@ export function EmptyState({
   actionLabel,
   onAction,
 }: EmptyStateProps) {
-  const colorScheme = useColorScheme() ?? 'light';
-  const colors = Colors[colorScheme];
+  const { colors, fontSize, fontWeight, spacing, borderRadius } = useTheme();
 
   return (
     <View style={styles.container}>
-      <Text style={styles.icon}>{icon}</Text>
-      <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
+      <View
+        style={[
+          styles.iconCircle,
+          {
+            backgroundColor: colors.primary + '12',
+            borderRadius: borderRadius.full,
+          },
+        ]}
+      >
+        <Text style={styles.icon}>{icon}</Text>
+      </View>
+      <Text
+        style={[
+          styles.title,
+          {
+            color: colors.text,
+            fontSize: fontSize.xl,
+            fontWeight: fontWeight.bold,
+          },
+        ]}
+      >
+        {title}
+      </Text>
       {subtitle && (
-        <Text style={[styles.subtitle, { color: colors.tabIconDefault }]}>
+        <Text
+          style={[
+            styles.subtitle,
+            {
+              color: colors.textSecondary,
+              fontSize: fontSize.md,
+            },
+          ]}
+        >
           {subtitle}
         </Text>
       )}
@@ -45,24 +72,27 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 32,
-    paddingVertical: 48,
+    paddingHorizontal: 40,
+    paddingVertical: 56,
+  },
+  iconCircle: {
+    width: 120,
+    height: 120,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
   },
   icon: {
-    fontSize: 56,
-    marginBottom: 16,
+    fontSize: 72,
   },
   title: {
-    fontSize: 20,
-    fontWeight: '600',
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: 10,
   },
   subtitle: {
-    fontSize: 15,
     textAlign: 'center',
-    lineHeight: 22,
-    marginBottom: 24,
+    lineHeight: 24,
+    marginBottom: 32,
   },
   buttonWrapper: {
     marginTop: 8,

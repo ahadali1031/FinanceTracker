@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   StyleSheet,
   View,
@@ -8,8 +8,7 @@ import {
   ViewStyle,
   StyleProp,
 } from 'react-native';
-import { useColorScheme } from '@/components/useColorScheme';
-import Colors from '@/constants/Colors';
+import { useTheme } from '@/constants/useTheme';
 
 interface InputProps {
   label?: string;
@@ -32,40 +31,82 @@ export function Input({
   error,
   style,
 }: InputProps) {
-  const colorScheme = useColorScheme() ?? 'light';
-  const isDark = colorScheme === 'dark';
-  const colors = Colors[colorScheme];
+  const { isDark, colors, borderRadius, fontSize, fontWeight, spacing } = useTheme();
+  const [isFocused, setIsFocused] = useState(false);
 
-  const borderColor = error
-    ? '#ff3b30'
-    : isDark
-      ? '#38383a'
-      : '#d1d1d6';
+  const getBorderColor = (): string => {
+    if (error) return colors.danger;
+    if (isFocused) return colors.primary;
+    return colors.border;
+  };
+
+  const borderColor = getBorderColor();
 
   return (
     <View style={[styles.container, style]}>
       {label && (
-        <Text style={[styles.label, { color: colors.text }]}>{label}</Text>
+        <Text
+          style={[
+            styles.label,
+            {
+              color: isFocused ? colors.primary : colors.textSecondary,
+              fontSize: fontSize.sm,
+              fontWeight: fontWeight.semibold,
+            },
+          ]}
+        >
+          {label}
+        </Text>
       )}
-      <TextInput
+      <View
         style={[
-          styles.input,
           {
-            color: colors.text,
-            backgroundColor: isDark ? '#1c1c1e' : '#fff',
+            borderRadius: borderRadius.md,
+            borderWidth: isFocused ? 1.5 : 1,
             borderColor,
+            backgroundColor: colors.surface,
           },
-          multiline && styles.multiline,
+          isFocused &&
+            !isDark && {
+              shadowColor: colors.primary,
+              shadowOffset: { width: 0, height: 0 },
+              shadowOpacity: 0.15,
+              shadowRadius: 8,
+              elevation: 2,
+            },
         ]}
-        placeholder={placeholder}
-        placeholderTextColor={isDark ? '#636366' : '#a0a0a0'}
-        value={value}
-        onChangeText={onChangeText}
-        keyboardType={keyboardType}
-        multiline={multiline}
-        textAlignVertical={multiline ? 'top' : 'center'}
-      />
-      {error && <Text style={styles.error}>{error}</Text>}
+      >
+        <TextInput
+          style={[
+            styles.input,
+            {
+              color: colors.text,
+              fontSize: fontSize.md,
+              padding: spacing.md,
+            },
+            multiline && styles.multiline,
+          ]}
+          placeholder={placeholder}
+          placeholderTextColor={colors.textTertiary}
+          value={value}
+          onChangeText={onChangeText}
+          keyboardType={keyboardType}
+          multiline={multiline}
+          textAlignVertical={multiline ? 'top' : 'center'}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setIsFocused(false)}
+        />
+      </View>
+      {error && (
+        <Text
+          style={[
+            styles.error,
+            { color: colors.danger, fontSize: fontSize.xs },
+          ]}
+        >
+          {error}
+        </Text>
+      )}
     </View>
   );
 }
@@ -75,24 +116,15 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   label: {
-    fontSize: 14,
-    fontWeight: '500',
-    marginBottom: 6,
+    marginBottom: 8,
+    letterSpacing: 0.2,
   },
-  input: {
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 16,
-  },
+  input: {},
   multiline: {
     minHeight: 100,
-    paddingTop: 12,
+    paddingTop: 16,
   },
   error: {
-    color: '#ff3b30',
-    fontSize: 12,
-    marginTop: 4,
+    marginTop: 6,
   },
 });
