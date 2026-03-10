@@ -5,7 +5,15 @@
       "Bash(npx expo:*)",
       "Bash(ls:*)",
       "Bash(wc:*)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Bash(npx tsc:*)",
+      "Bash(grep:*)",
+      "Bash(source:*)",
+      "Bash(curl:*)",
+      "Bash(git add:*)",
+      "Bash(git status:*)",
+      "Bash(git commit:*)",
+      "Bash(wc -l /Users/ahad/Documents/SideProjects/FinanceTracker/app/\\\\\\(tabs\\\\\\)/expenses.tsx)"
     ]
   }
 }
