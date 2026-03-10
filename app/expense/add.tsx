@@ -21,6 +21,7 @@ import { useAuthStore } from '@/src/stores/authStore';
 import { EXPENSE_CATEGORIES } from '@/src/utils/categories';
 import { formatDate } from '@/src/utils/date';
 import { useToastStore } from '@/src/stores/toastStore';
+import { suggestCategory } from '@/src/lib/gemini';
 
 function FadeInView({ delay = 0, children, style }: { delay?: number; children: React.ReactNode; style?: any }) {
   const opacity = useRef(new Animated.Value(0)).current;
@@ -54,6 +55,23 @@ export default function AddExpenseScreen() {
   const [isRecurring, setIsRecurring] = useState(false);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<{ amount?: string; category?: string }>({});
+  const [suggestingCategory, setSuggestingCategory] = useState(false);
+
+  const handleDescriptionBlur = async () => {
+    if (category || !description.trim() || suggestingCategory) return;
+    setSuggestingCategory(true);
+    try {
+      const suggested = await suggestCategory(description.trim());
+      if (suggested && !category) {
+        setCategory(suggested);
+        if (errors.category) setErrors((e) => ({ ...e, category: undefined }));
+      }
+    } catch {
+      // silently fail — user can still pick manually
+    } finally {
+      setSuggestingCategory(false);
+    }
+  };
 
   const validate = (): boolean => {
     const newErrors: { amount?: string; category?: string } = {};
@@ -135,6 +153,7 @@ export default function AddExpenseScreen() {
               placeholder="What was this expense for?"
               value={description}
               onChangeText={setDescription}
+              onBlur={handleDescriptionBlur}
             />
           </View>
         </FadeInView>

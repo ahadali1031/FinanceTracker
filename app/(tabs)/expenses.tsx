@@ -12,15 +12,18 @@ import {
   TextInput,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Timestamp } from 'firebase/firestore';
 import { useTheme } from '@/constants/useTheme';
 import { Card, EmptyState, CardSkeleton, ListItemSkeleton } from '@/src/components/ui';
 import { DonutChart } from '@/src/components/charts';
 import { useExpenseStore } from '@/src/stores/expenseStore';
 import { useIncomeStore } from '@/src/stores/incomeStore';
 import { useAuthStore } from '@/src/stores/authStore';
+import { useToastStore } from '@/src/stores/toastStore';
 import { formatCurrency } from '@/src/utils/currency';
 import { formatDate, formatMonthYear } from '@/src/utils/date';
 import { EXPENSE_CATEGORIES } from '@/src/utils/categories';
+import { parseExpenseFromText } from '@/src/lib/gemini';
 import { Ionicons } from '@expo/vector-icons';
 import type { Expense, Income } from '@/src/types';
 
@@ -324,9 +327,12 @@ export default function TransactionsScreen() {
   const router = useRouter();
 
   const user = useAuthStore((s) => s.user);
-  const { expenses, loading: expLoading, subscribeToExpenses, deleteExpense } = useExpenseStore();
+  const showToast = useToastStore((s) => s.showToast);
+  const { expenses, loading: expLoading, subscribeToExpenses, deleteExpense, addExpense } = useExpenseStore();
   const { incomes, loading: incLoading, subscribeToIncome, deleteIncome } = useIncomeStore();
 
+  const [quickAddText, setQuickAddText] = useState('');
+  const [quickAddParsing, setQuickAddParsing] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState(() => new Date());
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
   const [bizFilter, setBizFilter] = useState<BusinessFilter>('all');
@@ -342,6 +348,36 @@ export default function TransactionsScreen() {
     const unsub2 = subscribeToIncome(user.uid);
     return () => { unsub1(); unsub2(); };
   }, [user?.uid]);
+
+  const handleQuickAdd = useCallback(async () => {
+    if (!user?.uid || !quickAddText.trim() || quickAddParsing) return;
+    setQuickAddParsing(true);
+    try {
+      const parsed = await parseExpenseFromText(quickAddText.trim());
+      if (!parsed) {
+        if (Platform.OS === 'web') window.alert('Could not parse expense. Try something like "$14.50 chipotle lunch".');
+        else Alert.alert('Parse Error', 'Could not parse expense. Try something like "$14.50 chipotle lunch".');
+        return;
+      }
+      const expenseDate = parsed.date ? new Date(parsed.date) : new Date();
+      await addExpense(user.uid, {
+        amount: parsed.amount,
+        category: parsed.category,
+        description: parsed.description,
+        date: Timestamp.fromDate(expenseDate),
+        isBusiness: parsed.isBusiness,
+        isRecurring: false,
+      });
+      setQuickAddText('');
+      showToast('Expense added');
+    } catch (error) {
+      console.error('Quick add error:', error);
+      if (Platform.OS === 'web') window.alert('Failed to add expense.');
+      else Alert.alert('Error', 'Failed to add expense. Please try again.');
+    } finally {
+      setQuickAddParsing(false);
+    }
+  }, [user?.uid, quickAddText, quickAddParsing, addExpense, showToast]);
 
   const loading = expLoading || incLoading;
 
@@ -852,6 +888,30 @@ export default function TransactionsScreen() {
         </View>
       </FadeInView>
 
+      {/* Quick add bar */}
+      <FadeInView delay={215}>
+        <View style={[styles.quickAddBar, { marginHorizontal: spacing.md, marginTop: spacing.sm, backgroundColor: colors.surface, borderRadius: borderRadius.md, borderWidth: 1, borderColor: quickAddText.trim() ? colors.primary : colors.border, paddingHorizontal: spacing.md }]}>
+          <Ionicons name="flash" size={18} color={colors.primary} style={{ marginRight: spacing.sm }} />
+          <TextInput
+            value={quickAddText}
+            onChangeText={setQuickAddText}
+            placeholder='Quick add: "$12 coffee starbucks"'
+            placeholderTextColor={colors.textTertiary}
+            style={{ color: colors.text, fontSize: fontSize.sm, flex: 1, paddingVertical: spacing.sm }}
+            onSubmitEditing={handleQuickAdd}
+            returnKeyType="go"
+            editable={!quickAddParsing}
+          />
+          {quickAddParsing ? (
+            <ActivityIndicator size="small" color={colors.primary} />
+          ) : quickAddText.trim().length > 0 ? (
+            <Pressable onPress={handleQuickAdd} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Ionicons name="arrow-up-circle" size={24} color={colors.primary} />
+            </Pressable>
+          ) : null}
+        </View>
+      </FadeInView>
+
       {/* Search bar */}
       <FadeInView delay={225}>
         <View style={[styles.searchBar, { marginHorizontal: spacing.md, marginTop: spacing.sm, backgroundColor: colors.surface, borderRadius: borderRadius.md, borderWidth: 1, borderColor: colors.border, paddingHorizontal: spacing.md }]}>
@@ -991,6 +1051,7 @@ const styles = StyleSheet.create({
   },
   netCashLabel: {},
   netCashAmount: {},
+  quickAddBar: { flexDirection: 'row', alignItems: 'center' },
   searchBar: { flexDirection: 'row', alignItems: 'center' },
   searchInput: { },
   filterRow: { flexDirection: 'row' },

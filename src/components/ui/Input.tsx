@@ -21,6 +21,7 @@ interface InputProps {
   style?: StyleProp<ViewStyle>;
   onSubmitEditing?: () => void;
   autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
+  onBlur?: () => void;
 }
 
 export function Input({
@@ -34,6 +35,7 @@ export function Input({
   style,
   onSubmitEditing,
   autoCapitalize,
+  onBlur: onBlurProp,
 }: InputProps) {
   const { isDark, colors, borderRadius, fontSize, fontWeight, spacing } = useTheme();
   const [isFocused, setIsFocused] = useState(false);
@@ -98,7 +100,7 @@ export function Input({
           multiline={multiline}
           textAlignVertical={multiline ? 'top' : 'center'}
           onFocus={() => setIsFocused(true)}
-          onBlur={() => setIsFocused(false)}
+          onBlur={() => { setIsFocused(false); onBlurProp?.(); }}
           onSubmitEditing={onSubmitEditing}
           autoCapitalize={autoCapitalize}
         />
